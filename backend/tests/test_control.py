@@ -23,7 +23,10 @@ def _new_session():
 def test_full_auto_negotiation_reaches_agreement():
     s = _new_session()
     for _ in range(60):  # plenty; hard cap is max_rounds internally
-        out = s.advance_turn()
+        if s.pending_approval:
+            s.resolve_approval("approve")
+        else:
+            s.advance_turn()
         if s.status != "active":
             break
     assert s.status in ("agreed", "walked_away", "max_rounds")
@@ -39,7 +42,10 @@ def test_full_auto_negotiation_reaches_agreement():
 def test_offers_never_cross_reservations_during_session():
     s = _new_session()
     for _ in range(60):
-        s.advance_turn()
+        if s.pending_approval:
+            s.resolve_approval("approve")
+        else:
+            s.advance_turn()
         if s.status != "active":
             break
     buyer_prices = [m.quoted_price for m in s.history

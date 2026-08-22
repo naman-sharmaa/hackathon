@@ -12,13 +12,60 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+_ENV_PATH = Path(__file__).resolve().parent / ".env"
+
+
+def _load_env_file(path: Path) -> None:
+    """Minimal stdlib .env loader — no third-party dependency required.
+
+    Parses KEY=VALUE lines and injects them into os.environ WITHOUT overriding
+    variables already present in the real environment (same default as
+    python-dotenv, so an exported shell var always wins). Handles `export KEY=…`,
+    `# comments`, blank lines, inline comments on unquoted values, and single/
+    double-quoted values.
+
+    This is what makes live mode work on a clean `clone → fill .env → python3
+    app.py` with ZERO `pip install`: the rest of DealBench is stdlib-only, and
+    now `.env` loading is too. (Previously, if python-dotenv wasn't installed,
+    `.env` was silently ignored and a configured key looked like "(none)".)
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export "):].lstrip()
+        if "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        if not key:
+            continue
+        val = val.strip()
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in ("'", '"'):
+            val = val[1:-1]                      # strip matching surrounding quotes
+        else:
+            hash_at = val.find(" #")             # drop ` # inline comment` (unquoted only)
+            if hash_at != -1:
+                val = val[:hash_at].rstrip()
+        os.environ.setdefault(key, val)
+
+
+# Load backend/.env regardless of where the process is launched from. Prefer
+# python-dotenv when it happens to be installed (it handles the exotic cases),
+# but ALWAYS run the stdlib loader too so a missing python-dotenv can never
+# silently disable .env — the #1 "why is my key (none)?" gotcha.
 try:
     from dotenv import load_dotenv
 
-    # Load backend/.env regardless of where the process is launched from.
-    load_dotenv(Path(__file__).resolve().parent / ".env")
-except Exception:  # pragma: no cover - dotenv is optional at runtime
+    load_dotenv(_ENV_PATH)
+except Exception:  # pragma: no cover - dotenv is an optional convenience only
     pass
+_load_env_file(_ENV_PATH)
 
 
 def _bool(name: str, default: bool = False) -> bool:
@@ -86,10 +133,10 @@ class EngineDefaults:
 class Settings:
     # --- LLM / provider ---
     openrouter_api_key: str = field(default_factory=lambda: os.getenv("OPENROUTER_API_KEY", "").strip())
-    openrouter_base_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"))
-    buyer_model: str = field(default_factory=lambda: os.getenv("BUYER_MODEL", "meta-llama/llama-3.3-70b-instruct:free"))
-    seller_model: str = field(default_factory=lambda: os.getenv("SELLER_MODEL", "qwen/qwen3-coder:free"))
-    classifier_model: str = field(default_factory=lambda: os.getenv("CLASSIFIER_MODEL", "meta-llama/llama-3.2-3b-instruct:free"))
+    openrouter_base_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_BASE_URL", "https://opencode.ai/zen/v1"))
+    buyer_model: str = field(default_factory=lambda: os.getenv("BUYER_MODEL", "mimo-v2.5-free"))
+    seller_model: str = field(default_factory=lambda: os.getenv("SELLER_MODEL", "hy3-free"))
+    classifier_model: str = field(default_factory=lambda: os.getenv("CLASSIFIER_MODEL", "nemotron-3-ultra-free"))
     ollama_model: str = field(default_factory=lambda: os.getenv("OLLAMA_FALLBACK_MODEL", "llama3.2:1b"))
     ollama_host: str = field(default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434"))
     app_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_APP_URL", ""))

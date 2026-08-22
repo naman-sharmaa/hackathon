@@ -41,8 +41,11 @@ if str(BACKEND_DIR) not in sys.path:
 from config import FRONTEND_DIR  # noqa: E402
 from routes import session as r_session  # noqa: E402
 from routes import intervene as r_intervene  # noqa: E402
+from routes import approve as r_approve  # noqa: E402
 from routes import report as r_report  # noqa: E402
 from routes import eval as r_eval  # noqa: E402
+from routes import properties as r_properties  # noqa: E402
+from routes import health as r_health  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("dealbench.app")
@@ -69,13 +72,17 @@ ROUTES = [
     ("GET", _rx(r"/session/(?P<id>[^/]+)"), r_session.get_session),
     ("POST", _rx(r"/session/(?P<id>[^/]+)/message"), r_session.post_message),
     ("POST", _rx(r"/session/(?P<id>[^/]+)/intervene"), r_intervene.intervene),
+    ("POST", _rx(r"/session/(?P<id>[^/]+)/approve"), r_approve.approve),
     ("GET", _rx(r"/session/(?P<id>[^/]+)/report"), r_report.report),
+    ("GET", _rx(r"/properties"), r_properties.list_properties),
+    ("GET", _rx(r"/properties/(?P<id>[^/]+)"), r_properties.get_property),
     ("GET", _rx(r"/eval/run"), r_eval.eval_run),
     ("GET", _rx(r"/eval/results"), r_eval.eval_results),
+    ("GET", _rx(r"/health/llm"), r_health.llm_health),
     ("GET", _rx(r"/health"), lambda p, b, q: (200, {"ok": True, "service": "dealbench"})),
 ]
 
-_API_PREFIXES = ("/session", "/eval", "/health")
+_API_PREFIXES = ("/session", "/properties", "/eval", "/health")
 
 
 class DealBenchHandler(BaseHTTPRequestHandler):

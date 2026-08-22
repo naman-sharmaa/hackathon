@@ -26,7 +26,9 @@ python3 app.py
 # → DealBench serving on http://127.0.0.1:8000
 ```
 
-Open **http://127.0.0.1:8000** in a browser. Configure a negotiation (try buyer `20000` / seller `15000` for a comfortable deal), press **Advance one turn** or **Auto-play to end**, then take over a side and type your own counter-offer. The **Report** and **Eval** tabs are live.
+Open **http://127.0.0.1:8000** in a browser. You land on the **Cornerstone Homes** marketplace: browse the listings, open a home, set your private budget ceiling and **engage your buyer agent**. The negotiation then auto-plays turn-by-turn with a live reveal; your agent **pauses for your approval** before it closes or when the contractor pushes hard. At any point you can **take over as the buyer** and type your own counter, then hand control back to the agent. When the deal closes (or someone walks), the **deal report** breaks down the ZOPA, the surplus split, tactics used, and a clean/leak integrity check.
+
+A status pill in the top bar shows whether chat is streaming from the **live API** or the **offline narrator**, and each message is tagged with the backend that produced it (`live` / `local` / `offline`) — so you can always tell real API output from a fallback.
 
 Run the tests and the benchmark, also with zero install:
 
@@ -44,9 +46,21 @@ cd dealbench/backend
 cp .env.example .env          # then edit .env
 ```
 
-Put an [OpenRouter](https://openrouter.ai/keys) key in `OPENROUTER_API_KEY` and pick **two different-family** free models for buyer and seller (free model IDs rotate — verify them live at https://openrouter.ai/models?max_price=0). Optionally `pip install -r requirements.txt` for `.env` auto-loading (otherwise export the vars yourself). Restart `app.py`. If OpenRouter fails mid-run, the system degrades to Ollama (if configured) and then to the mock narrator automatically — the negotiation never dies.
+Put a key for your gateway in `OPENROUTER_API_KEY` and set `OPENROUTER_BASE_URL` to that gateway's OpenAI-compatible endpoint. This works with **any OpenAI-compatible gateway** — [OpenRouter](https://openrouter.ai/keys) (`https://openrouter.ai/api/v1`), [OpenCode Zen](https://opencode.ai) (`https://opencode.ai/zen/v1`), Together, a local vLLM, etc. Pick **two different-family** models for buyer and seller, then restart `app.py`. **No `pip install` is needed** — `config.py` reads `.env` on its own (it uses `python-dotenv` if present, and otherwise parses `.env` with the standard library, so a configured key is never silently ignored). If the gateway fails mid-run, the system degrades to Ollama (if configured) and then to the mock narrator automatically — the negotiation never dies.
 
-> The frontend loads React + htm from the jsDelivr CDN (no bundler). That is the **only** network dependency of the UI; the backend has none.
+> Free-model IDs rotate and get delisted with little notice. Confirm your exact IDs against the gateway's live catalog with `python3 check_llm.py --list-models` (see below) before a demo.
+
+**Verify the API is actually live** before a demo — this is the fast way to know whether chat will stream real model output or silently fall back to the offline narrator:
+
+```bash
+cd dealbench/backend
+python3 check_llm.py               # probe buyer, seller & classifier
+python3 check_llm.py --list-models # list the gateway's real model IDs
+```
+
+It reads `.env` exactly the way the server does (no install step), pings the buyer, seller **and** classifier models with one tiny request each, and prints a per-model ✓/✗ with the *real* error if one fails (bad key, unknown model ID, out of credit, blocked network). Exit code `0` means both buyer and seller answered (chat will be live); non-zero means at least one side will fall back. If a probe fails, it automatically cross-checks your configured IDs against the gateway's catalog and flags any that don't exist — so a typo'd or delisted model name is caught immediately. Use `--list-models` to print the full catalog and copy exact IDs into `.env`. The same check is exposed over HTTP for the UI's status pill: `GET /health/llm` returns a zero-cost config snapshot, and `GET /health/llm?probe=1` runs the live probe and returns a `live` / `partial` / `mock` verdict.
+
+> The frontend loads React + htm from the [esm.sh](https://esm.sh) CDN (no bundler). That is the **only** network dependency of the UI; the backend has none.
 
 ---
 
@@ -82,6 +96,8 @@ dealbench/
 ├── backend/                    Python stdlib only
 │   ├── app.py                  http.server API + static host for the SPA
 │   ├── config.py               single source of truth: tactics, engine constants, env
+│   ├── catalog.py              the property listings (public fields; floor_price kept private)
+│   ├── check_llm.py            standalone "is the live API working for buyer & seller?" check
 │   ├── engine/                 THE DETERMINISTIC CORE (no LLM anywhere in here)
 │   │   ├── concession_engine.py   closed-form diminishing-concession offer curve
 │   │   ├── stopping_rules.py      agreement / walk-away / deadline / max-rounds
@@ -114,14 +130,16 @@ dealbench/
 
 | Method & path | Purpose |
 |---|---|
-| `POST /session` | Create a negotiation. Body (all optional): `title`, `currency`, `buyer.reservation_price`, `seller.reservation_price`, `deadline_round`, `max_rounds`, `tolerance`. Returns the public session state. |
+| `GET /properties` · `GET /properties/{id}` | The contractor's public catalog (listings). The private `floor_price` is stripped and never sent to a client. |
+| `POST /session` | Create a negotiation. Bind it to a listing with `property_id` (the seller's floor/ask come from the catalog), or pass explicit `buyer.reservation_price` / `seller.reservation_price`. Also accepts `buyer_control` (`"autopilot"` \| `"manual"`), `budget_cap`, `title`, `currency`, `deadline_round`, `max_rounds`, `tolerance`. Returns the public session state. |
 | `GET /session/{id}` | Current public state (offers, mode, transcript, status). |
-| `POST /session/{id}/message` | Advance one turn. Body: `{"message": "..."}` when a side is human-controlled; `{"run_to_end": true}` to auto-play remaining AI turns. |
+| `POST /session/{id}/message` | Advance one turn. Body: `{"message": "..."}` when a side is human-controlled; `{"run_to_end": true}` to auto-play remaining AI turns. If an autopilot move needs sign-off, returns `awaiting_approval` and does not advance. |
+| `POST /session/{id}/approve` | Resolve a pending approval: `{"decision":"approve"}`, `{"decision":"counter","message":"..."}`, or `{"decision":"walk"}`. |
 | `POST /session/{id}/intervene` | `{"side":"buyer","action":"take_over"}` or `"return_to_ai"`. |
 | `GET /session/{id}/report` | End-of-deal report card. |
 | `GET /eval/run` | Run the benchmark now and return the results. |
 | `GET /eval/results` | Last benchmark snapshot. |
-| `GET /health` | Liveness probe. |
+| `GET /health` · `GET /health/llm[?probe=1]` | Liveness probe; and the LLM connectivity check behind the UI's live/mock badge (`?probe=1` pings the models). |
 
 The public state never exposes either reservation price — the UI only ever knows the *public* offers, which is why the convergence chart is honest by construction.
 
