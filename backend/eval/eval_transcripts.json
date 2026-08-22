@@ -1,0 +1,29 @@
+{
+  "_comment": "Labeled negotiation-tactic examples for the classifier ablation (spec 6). Labels use the canonical taxonomy in config.TACTICS; compound labels join parts with '+'. A prediction counts correct if it matches ANY part of the gold label. Written to be realistic (not overfit to the rules) — some examples are deliberately subtle so rules-only misses them and the ablation is meaningful.",
+  "examples": [
+    {"message": "That's my final offer — take it or leave it.", "tactic_label": "anchoring", "round": 5},
+    {"message": "If we can't get closer on price, I'll have to look at other places.", "tactic_label": "walk_away_threat", "round": 3},
+    {"message": "Similar two-bedroom units in this neighborhood are renting for noticeably less.", "tactic_label": "comparables", "round": 2},
+    {"message": "Let me think about it and get back to you tomorrow.", "tactic_label": "silence", "round": 4},
+    {"message": "Why don't we just split the difference and call it done?", "tactic_label": "splitting_difference", "round": 6},
+    {"message": "I need your decision by Friday — the offer expires then.", "tactic_label": "deadline_pressure", "round": 5},
+    {"message": "I can come up to a bit more as a gesture of good faith.", "tactic_label": "concession", "round": 4},
+    {"message": "You've been really reasonable through all this, I appreciate it.", "tactic_label": "flattery", "round": 3},
+    {"message": "The unit has two bedrooms, a balcony, and covered parking.", "tactic_label": "neutral", "round": 1},
+    {"message": "Comparable units are cheaper, and honestly I'm ready to walk if we can't move.", "tactic_label": "comparables+walk_away_threat", "round": 4},
+    {"message": "This is a premium property; the asking price is firm and reflects the market.", "tactic_label": "anchoring", "round": 2},
+    {"message": "I have to hear back by noon tomorrow, or I'm moving on to another offer.", "tactic_label": "deadline_pressure+walk_away_threat", "round": 6},
+    {"message": "Hmm, I'm not sure that works for me... we'll see.", "tactic_label": "silence", "round": 3},
+    {"message": "Let's meet in the middle and be done with it.", "tactic_label": "splitting_difference", "round": 7},
+    {"message": "I really love this place — it would be perfect for my family.", "tactic_label": "flattery", "round": 2},
+    {"message": "The market has softened lately; a few listings around here sat unsold for months.", "tactic_label": "comparables", "round": 3},
+    {"message": "I'll lower my price a little if you can close this week.", "tactic_label": "concession+deadline_pressure", "round": 5},
+    {"message": "My offer stands, and I won't go higher than this.", "tactic_label": "anchoring", "round": 4},
+    {"message": "Honestly, if you won't budge even a little, there's no point in continuing.", "tactic_label": "walk_away_threat", "round": 6},
+    {"message": "That's roughly the going rate around here, give or take.", "tactic_label": "comparables", "round": 2},
+    {"message": "I can be flexible — let's find a number that works for both of us.", "tactic_label": "concession+splitting_difference", "round": 5},
+    {"message": "Take the weekend, no rush; just let me know once you've decided.", "tactic_label": "silence", "round": 4},
+    {"message": "This place is genuinely worth it and the price is non-negotiable.", "tactic_label": "anchoring", "round": 3},
+    {"message": "There are two other interested buyers, so I wouldn't wait too long.", "tactic_label": "walk_away_threat+deadline_pressure", "round": 5}
+  ]
+}

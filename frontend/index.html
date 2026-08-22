@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DealBench — negotiation deal-desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* deal-desk ink surfaces */
+    --ink:#10141B; --ink-2:#161C25; --ink-3:#1E2632; --raise:#232D3B;
+    --line:#28313E; --line-2:#374454;
+    --text:#E7ECF3; --dim:#98A2B3; --faint:#606D7E;
+    /* the two sides of the table */
+    --buyer:#43D6C4;  --buyer-soft:rgba(67,214,196,.13); --buyer-line:rgba(67,214,196,.4);
+    --seller:#F2A65A; --seller-soft:rgba(242,166,90,.13); --seller-line:rgba(242,166,90,.4);
+    --deal:#74D680;   --deal-soft:rgba(116,214,128,.15);
+    --leak:#FF6B8A;   --leak-soft:rgba(255,107,138,.14);
+    --warn:#FFC65C;   --warn-soft:rgba(255,198,92,.14);
+    --display:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --r:12px; --r-sm:8px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(900px 500px at 15% -10%, rgba(67,214,196,.06), transparent 60%),
+      radial-gradient(900px 500px at 85% -10%, rgba(242,166,90,.06), transparent 60%),
+      var(--ink);
+    color:var(--text); font-family:var(--body); font-size:14px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit}
+  button{font-family:var(--body); cursor:pointer}
+  ::selection{background:rgba(67,214,196,.3)}
+
+  /* ---------- shell ---------- */
+  .wrap{max-width:1160px; margin:0 auto; padding:0 24px}
+  header.top{
+    position:sticky; top:0; z-index:20; backdrop-filter:blur(10px);
+    background:rgba(16,20,27,.82); border-bottom:1px solid var(--line);
+  }
+  .top .wrap{display:flex; align-items:center; gap:28px; height:62px}
+  .brand{display:flex; align-items:baseline; gap:10px; font-family:var(--display); font-weight:700; letter-spacing:-.02em; font-size:18px}
+  .brand .mark{
+    width:22px;height:22px;border-radius:6px;position:relative;top:3px;
+    background:linear-gradient(135deg,var(--buyer) 0 50%, var(--seller) 50% 100%);
+    box-shadow:0 0 0 1px rgba(255,255,255,.08) inset;
+  }
+  .brand small{font-family:var(--mono); font-weight:400; color:var(--faint); font-size:11px; letter-spacing:0}
+  nav.tabs{display:flex; gap:2px; margin-left:auto}
+  nav.tabs button{
+    background:transparent; border:0; color:var(--dim); padding:8px 14px; border-radius:var(--r-sm);
+    font-weight:500; font-size:13.5px; letter-spacing:.01em;
+  }
+  nav.tabs button:hover{color:var(--text); background:var(--ink-2)}
+  nav.tabs button.on{color:var(--ink); background:var(--text)}
+
+  main{padding:30px 0 80px}
+  .eyebrow{font-family:var(--mono); font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--faint)}
+  h1.page{font-family:var(--display); font-weight:600; font-size:26px; letter-spacing:-.02em; margin:6px 0 2px}
+  .sub{color:var(--dim); margin:0 0 22px; max-width:64ch}
+
+  .card{background:var(--ink-2); border:1px solid var(--line); border-radius:var(--r)}
+  .pad{padding:18px}
+  .grid{display:grid; gap:16px}
+
+  /* ---------- setup ---------- */
+  .setup{grid-template-columns:1.3fr .9fr}
+  label.f{display:block; margin-bottom:12px}
+  label.f span{display:block; font-size:12px; color:var(--dim); margin-bottom:5px; letter-spacing:.02em}
+  input,select,textarea{
+    width:100%; background:var(--ink); border:1px solid var(--line-2); color:var(--text);
+    border-radius:var(--r-sm); padding:9px 11px; font-family:var(--mono); font-size:13.5px;
+  }
+  input:focus,select,textarea:focus{outline:2px solid var(--buyer-line); outline-offset:0; border-color:transparent}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .hint{font-size:12px; color:var(--faint); font-family:var(--body)}
+  .btn{
+    border:1px solid var(--line-2); background:var(--ink-3); color:var(--text);
+    padding:9px 15px; border-radius:var(--r-sm); font-weight:600; font-size:13.5px;
+    display:inline-flex; align-items:center; gap:8px; transition:.12s;
+  }
+  .btn:hover{border-color:var(--faint)}
+  .btn:disabled{opacity:.4; cursor:not-allowed}
+  .btn.primary{background:var(--text); color:var(--ink); border-color:var(--text)}
+  .btn.primary:hover{filter:brightness(.94)}
+  .btn.buyer{border-color:var(--buyer-line); color:var(--buyer)}
+  .btn.buyer:hover{background:var(--buyer-soft)}
+  .btn.seller{border-color:var(--seller-line); color:var(--seller)}
+  .btn.seller:hover{background:var(--seller-soft)}
+  .btn.ghost{background:transparent}
+
+  /* ---------- status strip ---------- */
+  .strip{display:flex; align-items:center; gap:22px; flex-wrap:wrap}
+  .stat .k{font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.08em; text-transform:uppercase}
+  .stat .v{font-family:var(--mono); font-size:19px; font-weight:600; margin-top:2px}
+  .v.buyer{color:var(--buyer)} .v.seller{color:var(--seller)} .v.deal{color:var(--deal)}
+  .pill{font-family:var(--mono); font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px; letter-spacing:.04em; border:1px solid}
+  .pill.active{color:var(--dim); border-color:var(--line-2); background:var(--ink-3)}
+  .pill.agreed{color:var(--deal); border-color:var(--deal); background:var(--deal-soft)}
+  .pill.walked_away,.pill.max_rounds{color:var(--warn); border-color:var(--warn); background:var(--warn-soft)}
+
+  /* ---------- convergence spine (signature) ---------- */
+  .spine{position:relative; height:132px; margin:8px 2px 4px}
+  .spine .axis{position:absolute; left:0; right:0; top:66px; height:1px; background:var(--line-2)}
+  .spine .zopa{position:absolute; top:52px; height:28px; background:var(--deal-soft); border-left:1px dashed var(--deal); border-right:1px dashed var(--deal); border-radius:3px}
+  .spine .gap{position:absolute; top:62px; height:9px; background:repeating-linear-gradient(90deg,rgba(152,162,179,.25) 0 6px,transparent 6px 12px); border-radius:6px}
+  .marker{position:absolute; top:34px; transform:translateX(-50%); text-align:center; transition:left .5s cubic-bezier(.4,0,.2,1)}
+  .marker .dot{width:15px;height:15px;border-radius:50%; margin:0 auto; box-shadow:0 0 0 4px var(--ink)}
+  .marker.buyer .dot{background:var(--buyer)} .marker.seller .dot{background:var(--seller)}
+  .marker .lab{font-family:var(--mono); font-size:11px; margin-top:6px; white-space:nowrap; color:var(--dim)}
+  .marker .price{font-family:var(--mono); font-size:13px; font-weight:600; margin-top:1px}
+  .marker.buyer .price{color:var(--buyer)} .marker.seller .price{color:var(--seller)}
+  .marker.top{top:auto; bottom:34px}
+  .marker.top .dot{order:2}
+  .spine .dealflag{position:absolute; top:20px; transform:translateX(-50%); text-align:center; color:var(--deal); font-family:var(--mono); font-size:12px; font-weight:600}
+  .spine .scaleend{position:absolute; top:80px; font-family:var(--mono); font-size:10px; color:var(--faint)}
+
+  /* ---------- side control panels ---------- */
+  .sides{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  .sidecard{border-radius:var(--r); border:1px solid var(--line); padding:14px; background:var(--ink-2); position:relative; overflow:hidden}
+  .sidecard.buyer{border-top:2px solid var(--buyer)}
+  .sidecard.seller{border-top:2px solid var(--seller)}
+  .sidecard .role{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
+  .sidecard .role b{font-family:var(--display); font-size:15px; letter-spacing:-.01em}
+  .sidecard.buyer .role b{color:var(--buyer)} .sidecard.seller .role b{color:var(--seller)}
+  .modeflag{font-family:var(--mono); font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line-2); color:var(--dim)}
+  .modeflag.human{color:var(--text); border-color:var(--text); background:var(--ink-3)}
+  .ctl-row{display:flex; gap:8px; margin-top:8px}
+  .turnhint{font-size:12px; color:var(--faint); margin-top:8px; font-family:var(--body)}
+  .humanbox{margin-top:10px; padding-top:10px; border-top:1px dashed var(--line-2)}
+  .humanbox textarea{min-height:58px; resize:vertical; font-family:var(--body)}
+
+  /* ---------- transcript ---------- */
+  .feed{display:flex; flex-direction:column; gap:12px; margin-top:4px}
+  .msg{max-width:78%; border-radius:14px; padding:11px 13px; border:1px solid var(--line); background:var(--ink-2); position:relative}
+  .msg.buyer{align-self:flex-start; border-bottom-left-radius:4px; border-left:2px solid var(--buyer)}
+  .msg.seller{align-self:flex-end; border-bottom-right-radius:4px; border-right:2px solid var(--seller)}
+  .msg .meta{display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap}
+  .who{font-family:var(--display); font-weight:600; font-size:12.5px}
+  .msg.buyer .who{color:var(--buyer)} .msg.seller .who{color:var(--seller)}
+  .rtag{font-family:var(--mono); font-size:10.5px; color:var(--faint)}
+  .src{font-family:var(--mono); font-size:10px; padding:1px 6px; border-radius:4px; border:1px solid var(--line-2); color:var(--dim)}
+  .src.human{color:var(--text); border-color:var(--text)}
+  .msg .body{font-size:13.5px; color:var(--text)}
+  .msg .foot{display:flex; align-items:center; gap:8px; margin-top:9px; flex-wrap:wrap}
+  .chip{font-family:var(--mono); font-size:10.5px; padding:2px 7px; border-radius:999px; border:1px solid var(--line-2); color:var(--dim); display:inline-flex; gap:6px; align-items:center}
+  .conf{width:42px; height:4px; border-radius:2px; background:var(--line-2); overflow:hidden; display:inline-block}
+  .conf > i{display:block; height:100%; background:var(--dim)}
+  .flag{font-family:var(--mono); font-size:10px; font-weight:600; padding:2px 7px; border-radius:4px}
+  .flag.leak{color:var(--leak); background:var(--leak-soft); border:1px solid var(--leak)}
+  .flag.mismatch{color:var(--warn); background:var(--warn-soft); border:1px solid var(--warn)}
+  .flag.ok{color:var(--deal); background:var(--deal-soft); border:1px solid transparent}
+  .be{font-family:var(--mono); font-size:10px; padding:1px 6px; border-radius:4px; border:1px solid var(--line-2); color:var(--faint)}
+  .be.openrouter{color:var(--buyer); border-color:var(--buyer-line)}
+  .be.ollama{color:var(--seller); border-color:var(--seller-line)}
+  .be.mock{color:var(--faint)}
+  .be.human{color:var(--text); border-color:var(--text)}
+
+  /* ---------- report ---------- */
+  .kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  .kpi{background:var(--ink-2); border:1px solid var(--line); border-radius:var(--r); padding:16px}
+  .kpi .k{font-family:var(--mono); font-size:11px; color:var(--faint); text-transform:uppercase; letter-spacing:.1em}
+  .kpi .v{font-family:var(--mono); font-size:24px; font-weight:600; margin-top:6px}
+  .splitbar{height:34px; border-radius:8px; overflow:hidden; display:flex; border:1px solid var(--line)}
+  .splitbar .b{display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:12px; font-weight:600; color:var(--ink)}
+  .splitbar .b.buyer{background:var(--buyer)} .splitbar .b.seller{background:var(--seller)}
+  .tacts{display:flex; gap:8px; flex-wrap:wrap}
+  .row{display:flex; gap:10px; align-items:flex-start}
+  .timeline{border-left:2px solid var(--line-2); margin-left:6px; padding-left:16px}
+  .tl-item{position:relative; padding:6px 0}
+  .tl-item::before{content:''; position:absolute; left:-23px; top:11px; width:9px; height:9px; border-radius:50%; background:var(--text)}
+  .stamp{font-family:var(--display); font-weight:700; letter-spacing:.02em; padding:6px 12px; border-radius:8px; display:inline-block}
+  .stamp.clean{color:var(--deal); border:1.5px solid var(--deal)}
+  .stamp.dirty{color:var(--warn); border:1.5px solid var(--warn)}
+
+  /* ---------- eval ---------- */
+  .gates{display:flex; gap:8px; flex-wrap:wrap}
+  .gate{font-family:var(--mono); font-size:11.5px; padding:5px 10px; border-radius:8px; border:1px solid}
+  .gate.pass{color:var(--deal); border-color:var(--deal); background:var(--deal-soft)}
+  .gate.fail{color:var(--leak); border-color:var(--leak); background:var(--leak-soft)}
+  .abl{display:flex; align-items:flex-end; gap:26px; height:220px; padding:16px 8px 0}
+  .abl .group{display:flex; flex-direction:column; align-items:center; gap:8px; flex:1}
+  .abl .bars{display:flex; align-items:flex-end; gap:10px; height:160px}
+  .abl .bar{width:34px; border-radius:6px 6px 0 0; position:relative; transition:height .6s cubic-bezier(.4,0,.2,1)}
+  .abl .bar span{position:absolute; top:-19px; left:50%; transform:translateX(-50%); font-family:var(--mono); font-size:11px; color:var(--dim)}
+  .abl .bar.acc{background:linear-gradient(180deg,var(--buyer),rgba(67,214,196,.5))}
+  .abl .bar.f1{background:linear-gradient(180deg,var(--seller),rgba(242,166,90,.5))}
+  .abl .glab{font-family:var(--display); font-weight:600; font-size:13px}
+  .abl .glab.win{color:var(--deal)}
+  .legend{display:flex; gap:16px; font-family:var(--mono); font-size:11px; color:var(--dim)}
+  .legend i{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:middle}
+  .meters{display:grid; grid-template-columns:repeat(2,1fr); gap:14px}
+  .meter .top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px}
+  .meter .top b{font-family:var(--display); font-size:13px}
+  .meter .top .val{font-family:var(--mono); font-size:15px; font-weight:600}
+  .track{height:9px; border-radius:5px; background:var(--ink-3); overflow:hidden}
+  .track > i{display:block; height:100%; border-radius:5px}
+
+  .muted{color:var(--dim)} .mono{font-family:var(--mono)}
+  .center{display:flex; align-items:center; justify-content:center; min-height:40vh; text-align:center}
+  .spin{width:26px;height:26px;border-radius:50%;border:3px solid var(--line-2); border-top-color:var(--buyer); animation:sp 1s linear infinite; margin:0 auto 12px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--leak-soft); border:1px solid var(--leak); color:var(--text); padding:10px 16px; border-radius:10px; font-size:13px; z-index:50}
+  @media(max-width:820px){ .setup,.sides,.kpis,.meters{grid-template-columns:1fr} .abl{gap:12px} }
+  @media(prefers-reduced-motion:reduce){ *{transition:none!important; animation:none!important} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js" crossorigin></script>
+<script>
+const {useState, useEffect, useRef, useCallback} = React;
+const html = htm.bind(React.createElement);
+
+/* ---------- tiny API client (same-origin) ---------- */
+async function api(path, {method="GET", body}={}){
+  const res = await fetch(path, {
+    method,
+    headers: body!==undefined ? {"Content-Type":"application/json"} : undefined,
+    body: body!==undefined ? JSON.stringify(body) : undefined,
+  });
+  const txt = await res.text();
+  let data; try{ data = txt ? JSON.parse(txt) : {}; }catch(e){ data = {raw:txt}; }
+  if(!res.ok) throw Object.assign(new Error(data.error||("HTTP "+res.status)), {status:res.status, data});
+  return data;
+}
+const money = (n, c="$") => n==null ? "—" : c + Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
+const pct = x => (x==null? "—" : (x*100).toFixed(1)+"%");
+const titlecase = s => (s||"").replace(/_/g," ").replace(/\b\w/g,m=>m.toUpperCase());
+
+/* ---------- shared bits ---------- */
+function BackendBadge({b}){ if(!b) return null; return html`<span class=${"be "+b}>${b}</span>`; }
+
+function ValidatorFlags({m}){
+  return html`<${React.Fragment}>
+    ${m.validator_leak_detected && html`<span class="flag leak" title=${m.validator_details}>⚠ LEAK</span>`}
+    ${(!m.validator_price_ok && !m.validator_leak_detected) && html`<span class="flag mismatch" title=${m.validator_details}>≠ engine</span>`}
+  </${React.Fragment}>`;
+}
+
+function TacticChip({m, side}){
+  if(!m.detected_tactic) return null;
+  const col = side==="buyer" ? "var(--buyer)" : "var(--seller)";
+  return html`<span class="chip">
+    ${titlecase(m.detected_tactic)}
+    <span class="conf" title=${"confidence "+pct(m.tactic_confidence)}>
+      <i style=${{width:Math.round((m.tactic_confidence||0)*100)+"%", background:col}}></i>
+    </span>
+  </span>`;
+}
+
+function MessageBubble({m, currency}){
+  return html`<div class=${"msg "+m.side}>
+    <div class="meta">
+      <span class="who">${m.side==="buyer"?"Buyer":"Seller"}</span>
+      <span class=${"src "+(m.source==="human"?"human":"")}>${m.source==="human"?"You":"AI"}</span>
+      <span class="rtag">round ${m.round}</span>
+    </div>
+    <div class="body">${m.content}</div>
+    <div class="foot">
+      <${TacticChip} m=${m} side=${m.side} />
+      <${ValidatorFlags} m=${m} />
+      <${BackendBadge} b=${m.backend} />
+    </div>
+  </div>`;
+}
+
+/* ---------- signature: the convergence spine ----------
+   The UI only ever knows PUBLIC offers (never the secret reservation prices),
+   so the price domain is derived from observed offers — honest by construction.
+   Buyer pushes up from the left, seller down from the right; the hatched gap is
+   the live distance to a deal and visibly closes each round. */
+function ConvergenceSpine({session}){
+  const c = session.currency;
+  const offers = session.offers || {};
+  const prices = [];
+  (session.history||[]).forEach(m=>{ if(m.quoted_price!=null) prices.push(m.quoted_price); });
+  [offers.buyer, offers.seller, session.final_price].forEach(v=>{ if(v!=null) prices.push(v); });
+  if(prices.length===0){
+    return html`<div class="spine"><div class="axis"></div>
+      <div class="scaleend" style=${{left:0}}>waiting for the first offer…</div></div>`;
+  }
+  let lo = Math.min(...prices), hi = Math.max(...prices);
+  if(lo===hi){ lo -= 1000; hi += 1000; }
+  const padTotal = (hi-lo)*0.16; lo -= padTotal/2; hi += padTotal/2;
+  const posOf = v => Math.max(0, Math.min(100, ((v-lo)/(hi-lo))*100));
+
+  const b = offers.buyer, s = offers.seller;
+  const agreed = session.status==="agreed";
+  const gapEls = (b!=null && s!=null && !agreed) ? (()=>{
+    const l = Math.min(posOf(b),posOf(s)), r = Math.max(posOf(b),posOf(s));
+    return html`<div class="gap" style=${{left:l+"%", width:(r-l)+"%"}}></div>`;
+  })() : null;
+
+  return html`<div class="spine">
+    <div class="axis"></div>
+    ${gapEls}
+    ${b!=null && html`<div class=${"marker buyer"} style=${{left:posOf(b)+"%"}}>
+        <div class="dot"></div><div class="price">${money(b,c)}</div><div class="lab">buyer bid</div></div>`}
+    ${s!=null && html`<div class=${"marker seller top"} style=${{left:posOf(s)+"%"}}>
+        <div class="lab">seller ask</div><div class="price">${money(s,c)}</div><div class="dot"></div></div>`}
+    ${agreed && session.final_price!=null && html`<div class="dealflag" style=${{left:posOf(session.final_price)+"%"}}>◆ deal ${money(session.final_price,c)}</div>`}
+    <div class="scaleend" style=${{left:0}}>${money(lo,c)}</div>
+    <div class="scaleend" style=${{right:0}}>${money(hi,c)}</div>
+  </div>`;
+}
+
+/* ---------- side control panel ---------- */
+function SidePanel({side, session, busy, onTakeOver, onReturn, onSend}){
+  const [draft,setDraft] = useState("");
+  const mode = session.mode?.[side] || "auto";
+  const human = mode==="human";
+  const isTurn = session.turn===side && session.status==="active";
+  const awaiting = session.awaiting_human===side;
+  const fellBack = session.fallback_active?.[side];
+  const label = side==="buyer" ? "Buyer" : "Seller";
+  return html`<div class=${"sidecard "+side}>
+    <div class="role">
+      <b>${label}</b>
+      <span class=${"modeflag "+(human?"human":"")}>${human?"You control":"AI control"}</span>
+    </div>
+    <div class="hint">
+      ${isTurn ? "It's this side's turn." : "Waiting."}
+      ${fellBack && html` · <span style=${{color:"var(--seller)"}}>on fallback narrator</span>`}
+    </div>
+    <div class="ctl-row">
+      ${!human && html`<button class=${"btn "+side} disabled=${busy} onClick=${()=>onTakeOver(side)}>Take over</button>`}
+      ${human && html`<button class="btn ghost" disabled=${busy} onClick=${()=>onReturn(side)}>Return to AI</button>`}
+    </div>
+    ${(human && awaiting) && html`<div class="humanbox">
+      <label class="f"><span>Your message as the ${label.toLowerCase()} — state your number in words or digits</span>
+        <textarea value=${draft} placeholder=${"e.g. I can come up to 17,400 — that's a fair bid."}
+          onInput=${e=>setDraft(e.target.value)}></textarea></label>
+      <button class="btn primary" disabled=${busy||!draft.trim()} onClick=${()=>{onSend(draft.trim()); setDraft("");}}>Send message</button>
+      <div class="hint" style=${{marginTop:"8px"}}>The validator checks your message for price-consistency and reservation leaks, exactly like an AI turn.</div>
+    </div>`}
+  </div>`;
+}
+
+/* ---------- Arena (setup + live negotiation) ---------- */
+function Arena({session, setSession}){
+  const [form,setForm] = useState({title:"Downtown 2BR lease", buyer_res:20000, seller_res:15000,
+                                    deadline:"", currency:"$", tolerance:"", max_rounds:""});
+  const [busy,setBusy] = useState(false);
+  const [auto,setAuto] = useState(false);
+  const [err,setErr] = useState(null);
+  const feedEnd = useRef(null);
+  const autoRef = useRef(false);
+
+  useEffect(()=>{ feedEnd.current?.scrollIntoView({behavior:"smooth"}); }, [session?.history?.length]);
+
+  const upd = (k,v)=> setForm(f=>({...f,[k]:v}));
+
+  async function start(){
+    setBusy(true); setErr(null);
+    try{
+      const body = {
+        title: form.title, currency: form.currency,
+        buyer:{reservation_price:Number(form.buyer_res)},
+        seller:{reservation_price:Number(form.seller_res)},
+      };
+      if(form.deadline) body.deadline_round = Number(form.deadline);
+      if(form.tolerance) body.tolerance = Number(form.tolerance);
+      if(form.max_rounds) body.max_rounds = Number(form.max_rounds);
+      const s = await api("/session", {method:"POST", body});
+      setSession(s);
+    }catch(e){ setErr(e.message); } finally{ setBusy(false); }
+  }
+
+  const refresh = useCallback(async(id)=>{ const s = await api("/session/"+id); setSession(s); return s; },[setSession]);
+
+  async function step(msg){
+    if(!session) return;
+    setBusy(true); setErr(null);
+    try{
+      const r = await api("/session/"+session.id+"/message", {method:"POST", body: msg!==undefined ? {message:msg} : {}});
+      setSession(r.session);
+      if(r.new_messages?.some(m=>m.validator_leak_detected)) flashLeak(setErr);
+      return r.session;
+    }catch(e){ setErr(e.message); return null; } finally{ setBusy(false); }
+  }
+
+  async function intervene(side, action){
+    setBusy(true); setErr(null);
+    try{ const r = await api("/session/"+session.id+"/intervene",{method:"POST", body:{side,action}}); setSession(r.session); }
+    catch(e){ setErr(e.message); } finally{ setBusy(false); }
+  }
+
+  // auto-play: step while the current side is on AI and no human input is required
+  useEffect(()=>{
+    autoRef.current = auto;
+    if(!auto || !session) return;
+    let alive = true;
+    (async()=>{
+      while(alive && autoRef.current){
+        const s = session.id ? await api("/session/"+session.id) : null;
+        if(!s || s.status!=="active" || (s.mode[s.turn]==="human")){ setAuto(false); break; }
+        const r = await api("/session/"+s.id+"/message",{method:"POST", body:{}});
+        setSession(r.session);
+        if(r.new_messages?.some(m=>m.validator_leak_detected)) flashLeak(setErr);
+        await new Promise(r=>setTimeout(r,650));
+      }
+    })();
+    return ()=>{ alive=false; };
+  // eslint-disable-next-line
+  },[auto]);
+
+  if(!session){
+    return html`<div>
+      <div class="eyebrow">Set the table</div>
+      <h1 class="page">Configure a negotiation</h1>
+      <p class="sub">Both parties get a private reservation price — the buyer's ceiling, the seller's floor. A deal is only possible if they overlap (a ZOPA). The deterministic engine computes every offer; the agents only narrate.</p>
+      <div class="grid setup">
+        <div class="card pad">
+          <label class="f"><span>Scenario title</span>
+            <input value=${form.title} onInput=${e=>upd("title",e.target.value)} style=${{fontFamily:"var(--body)"}}/></label>
+          <div class="two">
+            <label class="f"><span>Buyer reservation (max budget)</span>
+              <input type="number" value=${form.buyer_res} onInput=${e=>upd("buyer_res",e.target.value)}/></label>
+            <label class="f"><span>Seller reservation (floor)</span>
+              <input type="number" value=${form.seller_res} onInput=${e=>upd("seller_res",e.target.value)}/></label>
+          </div>
+          <div class="two">
+            <label class="f"><span>Currency</span>
+              <select value=${form.currency} onChange=${e=>upd("currency",e.target.value)}>
+                <option>$</option><option>₹</option><option>€</option><option>£</option></select></label>
+            <label class="f"><span>Deadline round (optional)</span>
+              <input type="number" placeholder="none" value=${form.deadline} onInput=${e=>upd("deadline",e.target.value)}/></label>
+          </div>
+          <button class="btn primary" disabled=${busy} onClick=${start}>${busy?"Starting…":"Start negotiation →"}</button>
+          ${err && html`<div class="hint" style=${{color:"var(--leak)",marginTop:"10px"}}>${err}</div>`}
+        </div>
+        <div class="card pad">
+          <div class="eyebrow">How it reads</div>
+          <p class="muted" style=${{fontSize:"13px"}}>Buyer <b style=${{color:"var(--buyer)"}}>bids up</b> from a low anchor; seller <b style=${{color:"var(--seller)"}}>asks down</b> from a high one. The hatched gap between them is the distance to a deal.</p>
+          <p class="muted" style=${{fontSize:"13px"}}>Try <b>20,000 / 15,000</b> for a comfortable deal, or <b>14,000 / 15,000</b> for a no-ZOPA walk-away.</p>
+          <p class="muted" style=${{fontSize:"13px"}}>Once live, you can <b>take over</b> either side and hand back to the AI mid-deal — the transcript never breaks.</p>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  const s = session;
+  const gap = (s.offers?.buyer!=null && s.offers?.seller!=null) ? Math.abs(s.offers.buyer - s.offers.seller) : null;
+  return html`<div>
+    <div class="strip" style=${{justifyContent:"space-between", marginBottom:"14px"}}>
+      <div><div class="eyebrow">Live arena</div>
+        <h1 class="page" style=${{fontSize:"22px"}}>${s.title||"Negotiation"}</h1></div>
+      <span class=${"pill "+s.status}>${titlecase(s.status)}</span>
+    </div>
+
+    <div class="card pad" style=${{marginBottom:"16px"}}>
+      <div class="strip" style=${{marginBottom:"6px"}}>
+        <div class="stat"><div class="k">Exchange</div><div class="v">${s.exchange} / ${s.max_rounds}</div></div>
+        <div class="stat"><div class="k">Buyer bid</div><div class="v buyer">${money(s.offers?.buyer,s.currency)}</div></div>
+        <div class="stat"><div class="k">Seller ask</div><div class="v seller">${money(s.offers?.seller,s.currency)}</div></div>
+        <div class="stat"><div class="k">Gap</div><div class="v">${gap==null?"—":money(gap,s.currency)}</div></div>
+        ${s.final_price!=null && html`<div class="stat"><div class="k">Final</div><div class="v deal">${money(s.final_price,s.currency)}</div></div>`}
+      </div>
+      <${ConvergenceSpine} session=${s} />
+    </div>
+
+    <div class="sides" style=${{marginBottom:"16px"}}>
+      <${SidePanel} side="buyer" session=${s} busy=${busy}
+        onTakeOver=${x=>intervene(x,"take_over")} onReturn=${x=>intervene(x,"return_to_ai")} onSend=${m=>step(m)}/>
+      <${SidePanel} side="seller" session=${s} busy=${busy}
+        onTakeOver=${x=>intervene(x,"take_over")} onReturn=${x=>intervene(x,"return_to_ai")} onSend=${m=>step(m)}/>
+    </div>
+
+    <div class="strip" style=${{marginBottom:"18px"}}>
+      <button class="btn primary" disabled=${busy||auto||s.status!=="active"||s.awaiting_human} onClick=${()=>step()}>
+        Advance one turn (${titlecase(s.turn)})</button>
+      <button class="btn" disabled=${busy||s.status!=="active"||s.awaiting_human} onClick=${()=>setAuto(a=>!a)}>
+        ${auto?"⏸ Pause":"▶ Auto-play to end"}</button>
+      <button class="btn ghost" onClick=${()=>{setAuto(false); setSession(null);}}>Reset</button>
+      ${s.awaiting_human && html`<span class="hint" style=${{color:"var(--warn)"}}>Waiting for your ${s.awaiting_human} message above.</span>`}
+    </div>
+
+    <div class="eyebrow" style=${{marginBottom:"10px"}}>Transcript · every message validated</div>
+    <div class="feed">
+      ${(s.history||[]).map((m,i)=> html`<${MessageBubble} key=${i} m=${m} currency=${s.currency} />`)}
+      ${(s.history||[]).length===0 && html`<div class="muted">No messages yet — advance a turn to begin.</div>`}
+      <div ref=${feedEnd}></div>
+    </div>
+    ${err && html`<div class="toast">${err}</div>`}
+  </div>`;
+}
+
+let leakTimer=null;
+function flashLeak(setErr){ setErr("⚠ Validator caught a reservation-price leak in that message."); clearTimeout(leakTimer); leakTimer=setTimeout(()=>setErr(null),3500); }
+
+/* ---------- Report card ---------- */
+function ReportView({session}){
+  const [rep,setRep] = useState(null);
+  const [err,setErr] = useState(null);
+  useEffect(()=>{
+    if(!session){ return; }
+    setErr(null); setRep(null);
+    api("/session/"+session.id+"/report").then(setRep).catch(e=>setErr(e.message));
+  },[session]);
+
+  if(!session) return html`<${Empty} title="No negotiation yet" body="Run one in the Arena, then come back for its report card." />`;
+  if(err) return html`<div class="center"><div><p style=${{color:"var(--leak)"}}>${err}</p></div></div>`;
+  if(!rep) return html`<${Loading} label="Building report…" />`;
+
+  const c = rep.currency, da = rep.deal_analysis||{};
+  const mlt = rep.money_left_on_table||{};
+  const bSur = da.buyer_surplus||0, sSur = da.seller_surplus||0, tot = (bSur+sSur)||1;
+  const tacts = side => Object.entries(rep.tactics_used?.[side]||{});
+  return html`<div>
+    <div class="strip" style=${{justifyContent:"space-between", marginBottom:"6px"}}>
+      <div><div class="eyebrow">Report card</div><h1 class="page">${rep.title||"Negotiation"}</h1></div>
+      <span class=${"stamp "+(rep.clean?"clean":"dirty")}>${rep.clean?"CLEAN RUN":"FLAGS RAISED"}</span>
+    </div>
+    <p class="sub">${rep.outcome} · ${rep.rounds_completed} exchanges · narration ${Object.entries(rep.narration_backends||{}).map(([k,v])=>k+"×"+v).join(", ")||"—"}${rep.degraded_to_fallback?" · degraded to fallback":""}</p>
+
+    <div class="kpis" style=${{marginBottom:"18px"}}>
+      <div class="kpi"><div class="k">Outcome</div><div class="v" style=${{color: rep.status==="agreed"?"var(--deal)":"var(--warn)"}}>${rep.status==="agreed"?"Deal":"No deal"}</div></div>
+      <div class="kpi"><div class="k">Final price</div><div class="v">${money(rep.final_price,c)}</div></div>
+      <div class="kpi"><div class="k">Fair midpoint</div><div class="v">${money(da.fair_midpoint,c)}</div></div>
+    </div>
+
+    ${rep.status==="agreed" && html`<div class="card pad" style=${{marginBottom:"16px"}}>
+      <div class="eyebrow" style=${{marginBottom:"10px"}}>Surplus split — who captured the value</div>
+      <div class="splitbar">
+        <div class="b buyer" style=${{width: Math.max(6,(bSur/tot)*100)+"%"}}>${money(bSur,c)}</div>
+        <div class="b seller" style=${{width: Math.max(6,(sSur/tot)*100)+"%"}}>${money(sSur,c)}</div>
+      </div>
+      <div class="strip" style=${{marginTop:"10px", justifyContent:"space-between"}}>
+        <span class="hint">Buyer left on table: <b class="mono">${money(mlt.buyer,c)}</b></span>
+        <span class="hint">ZOPA width: <b class="mono">${money(da.zopa_size,c)}</b></span>
+        <span class="hint">Seller left on table: <b class="mono">${money(mlt.seller,c)}</b></span>
+      </div>
+    </div>`}
+
+    <div class="grid" style=${{gridTemplateColumns:"1fr 1fr", marginBottom:"16px"}}>
+      <div class="card pad">
+        <div class="eyebrow" style=${{marginBottom:"10px"}}>Tactics used</div>
+        <div style=${{marginBottom:"10px"}}><b style=${{color:"var(--buyer)"}}>Buyer</b>
+          <div class="tacts" style=${{marginTop:"6px"}}>${tacts("buyer").length? tacts("buyer").map(([t,n])=>html`<span class="chip">${titlecase(t)} ·${n}</span>`) : html`<span class="hint">none detected</span>`}</div></div>
+        <div><b style=${{color:"var(--seller)"}}>Seller</b>
+          <div class="tacts" style=${{marginTop:"6px"}}>${tacts("seller").length? tacts("seller").map(([t,n])=>html`<span class="chip">${titlecase(t)} ·${n}</span>`) : html`<span class="hint">none detected</span>`}</div></div>
+      </div>
+      <div class="card pad">
+        <div class="eyebrow" style=${{marginBottom:"10px"}}>Interventions</div>
+        ${(rep.interventions||[]).length ? html`<div class="timeline">
+          ${rep.interventions.map((iv,i)=>html`<div class="tl-item" key=${i}>
+            <b style=${{color: iv.side==="buyer"?"var(--buyer)":"var(--seller)"}}>${titlecase(iv.side)}</b>
+            ${" "}${iv.action==="take_over"?"taken over by human":"returned to AI"} <span class="rtag">· exch ${iv.round}</span></div>`)}
+        </div>` : html`<span class="hint">Fully autonomous — no human took over.</span>`}
+        ${(rep.confidence_flags?.leak_failures||[]).length>0 && html`<div style=${{marginTop:"12px"}}>
+          <div class="eyebrow" style=${{color:"var(--leak)"}}>Leaks caught</div>
+          ${rep.confidence_flags.leak_failures.map((f,i)=>html`<div class="hint" key=${i} style=${{color:"var(--leak)"}}>r${f.round} ${f.side}/${f.source}: ${f.excerpt}</div>`)}
+        </div>`}
+      </div>
+    </div>
+    ${da.notes && html`<p class="hint">${da.notes}</p>`}
+  </div>`;
+}
+
+/* ---------- Eval dashboard ---------- */
+function Bar({cls, value, label}){
+  return html`<div class=${"bar "+cls} style=${{height: Math.round((value||0)*160)+"px"}}><span>${pct(value)}</span></div>`;
+}
+function Meter({label, value, good, sub}){
+  const col = good ? "var(--deal)" : "var(--warn)";
+  return html`<div class="meter">
+    <div class="top"><b>${label}</b><span class="val" style=${{color:col}}>${pct(value)}</span></div>
+    <div class="track"><i style=${{width: Math.round((value||0)*100)+"%", background:col}}></i></div>
+    ${sub && html`<div class="hint" style=${{marginTop:"5px"}}>${sub}</div>`}
+  </div>`;
+}
+function EvalView(){
+  const [data,setData] = useState(null);
+  const [busy,setBusy] = useState(false);
+  const [err,setErr] = useState(null);
+  const load = useCallback(async(run)=>{
+    setBusy(true); setErr(null);
+    try{ setData(await api(run? "/eval/run":"/eval/results")); }
+    catch(e){ setErr(e.message); } finally{ setBusy(false); }
+  },[]);
+  useEffect(()=>{ load(false); },[load]);
+
+  const latest = data && (data.latest!==undefined ? data.latest : data);
+  return html`<div>
+    <div class="strip" style=${{justifyContent:"space-between", marginBottom:"6px"}}>
+      <div><div class="eyebrow">Benchmark</div><h1 class="page">Eval dashboard</h1></div>
+      <button class="btn primary" disabled=${busy} onClick=${()=>load(true)}>${busy?"Running…":"Run eval now"}</button>
+    </div>
+    <p class="sub">Five metrics from the spec. The headline is the <b>ablation</b>: the hybrid ensemble should beat rules-only and LLM-only tactic classification.</p>
+
+    ${busy && !latest && html`<${Loading} label="Running the harness…" />`}
+    ${err && html`<div class="toast">${err}</div>`}
+    ${!latest && !busy && html`<${Empty} title="No results yet" body="Click “Run eval now”." />`}
+
+    ${latest && (()=>{
+      const m = latest.metrics||{}; const t = m.tactic_classification?.systems||{};
+      const win = ["rules","llm","ensemble"].reduce((a,b)=> (t[b]?.accuracy||0) > (t[a]?.accuracy||0) ? b : a, "rules");
+      const lk = m.leak_detection||{}; const pc = m.price_consistency||{}; const st = m.stopping_rules||{}; const fb = m.fallback_triggers||{};
+      return html`<${React.Fragment}>
+        <div class="card pad" style=${{marginBottom:"16px"}}>
+          <div class="strip" style=${{justifyContent:"space-between"}}>
+            <div class="eyebrow">Gates</div>
+            <span class="hint">${latest.generated_at} · ${latest.offline_mode?"offline mode":"live"}</span>
+          </div>
+          <div class="gates" style=${{marginTop:"10px"}}>
+            ${Object.entries(latest.gates||{}).map(([k,v])=>html`<span class=${"gate "+(v?"pass":"fail")} key=${k}>${v?"✓":"✗"} ${k.replace(/_/g," ")}</span>`)}
+          </div>
+        </div>
+
+        <div class="card pad" style=${{marginBottom:"16px"}}>
+          <div class="strip" style=${{justifyContent:"space-between"}}>
+            <div class="eyebrow">Tactic classification — rules vs LLM vs ensemble</div>
+            <div class="legend"><span><i style=${{background:"var(--buyer)"}}></i>accuracy</span><span><i style=${{background:"var(--seller)"}}></i>macro-F1</span></div>
+          </div>
+          <div class="abl">
+            ${["rules","llm","ensemble"].map(name=>html`<div class="group" key=${name}>
+              <div class="bars">
+                <${Bar} cls="acc" value=${t[name]?.accuracy} />
+                <${Bar} cls="f1" value=${t[name]?.macro_f1} />
+              </div>
+              <div class=${"glab"+(name===win?" win":"")}>${titlecase(name)}${name===win?" ★":""}</div>
+            </div>`)}
+          </div>
+          <div class="hint" style=${{textAlign:"center"}}>LLM backend: ${m.tactic_classification?.llm_backend} · ${m.tactic_classification?.n_examples} labeled messages</div>
+        </div>
+
+        <div class="meters">
+          <${Meter} label="Price consistency" value=${pc.pass_rate} good=${pc.pass_rate>=0.99}
+            sub=${(pc.passed||0)+"/"+(pc.agent_messages_checked||0)+" agent messages quote the engine number"}/>
+          <${Meter} label="Leak recall" value=${lk.leak_recall} good=${(lk.leak_miss_rate||0)===0}
+            sub=${"miss "+pct(lk.leak_miss_rate)+" · false-positive "+pct(lk.false_positive_rate)+" on safe messages"}/>
+          <${Meter} label="Stopping-rule accuracy" value=${st.accuracy} good=${st.accuracy===1}
+            sub=${(st.correct||0)+"/"+(st.total||0)+" scripted scenarios"}/>
+          <${Meter} label="Fallback-trigger success" value=${fb.success_rate} good=${fb.success_rate===1}
+            sub=${(fb.passed||0)+"/"+(fb.total||0)+" simulated API failures survived"}/>
+        </div>
+      </${React.Fragment}>`;
+    })()}
+  </div>`;
+}
+
+function Loading({label}){ return html`<div class="center"><div><div class="spin"></div><div class="muted">${label||"Loading…"}</div></div></div>`; }
+function Empty({title, body}){ return html`<div class="center"><div><h1 class="page">${title}</h1><p class="sub" style=${{margin:"0 auto"}}>${body}</p></div></div>`; }
+
+/* ---------- App shell ---------- */
+function App(){
+  const [view,setView] = useState("arena");
+  const [session,setSession] = useState(null);
+  const tabs = [["arena","Arena"],["report","Report"],["eval","Eval"]];
+  return html`<${React.Fragment}>
+    <header class="top"><div class="wrap">
+      <div class="brand"><span class="mark"></span>DealBench <small>deal-desk</small></div>
+      <nav class="tabs">
+        ${tabs.map(([k,lab])=>html`<button key=${k} class=${view===k?"on":""} onClick=${()=>setView(k)}>${lab}</button>`)}
+      </nav>
+    </div></header>
+    <main><div class="wrap">
+      ${view==="arena" && html`<${Arena} session=${session} setSession=${setSession} />`}
+      ${view==="report" && html`<${ReportView} session=${session} />`}
+      ${view==="eval" && html`<${EvalView} />`}
+    </div></main>
+  </${React.Fragment}>`;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(html`<${App} />`);
+
+
+</script>
+</body>
+</html>

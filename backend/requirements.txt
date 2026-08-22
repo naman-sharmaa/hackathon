@@ -1,0 +1,15 @@
+# DealBench runs on the Python 3.10+ STANDARD LIBRARY ALONE.
+#
+#   python3 backend/app.py        # start the API + UI, no install step
+#   python3 backend/run_tests.py  # run the unit tests, no install step
+#
+# There are intentionally no required third-party runtime dependencies: the
+# HTTP server uses http.server, the OpenRouter/Ollama client uses urllib, the
+# DB uses sqlite3.  This makes "clone and run" bulletproof for a demo and means
+# the offline mock narrator works with zero setup.
+#
+# The packages below are OPTIONAL niceties only:
+#   - python-dotenv : auto-load backend/.env (we fall back to os.environ if absent)
+#
+# pip install -r requirements.txt   # optional
+python-dotenv>=1.0.0

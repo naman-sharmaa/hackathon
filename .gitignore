@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Env / secrets
+.env
+
+# DB
+*.db
+*.sqlite
+*.sqlite3
+dealbench.db
+
+# Eval output (keep the seed sets, ignore run history if it grows)
+backend/eval/eval_results.json
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Node (frontend is CDN-based; nothing to build, but just in case)
+node_modules/

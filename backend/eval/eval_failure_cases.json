@@ -1,0 +1,15 @@
+{
+  "_comment": "Simulated API failures (spec 6). Each case names a 'scenario' that run_eval knows how to reproduce by monkeypatching llm_client (forcing timeouts / malformed responses / a fake key). The assertions verify the graceful-degradation ladder trips and the negotiation SURVIVES with correct deal math regardless of narration backend.",
+  "cases": [
+    {"name": "offline, no API key", "scenario": "offline_no_key",
+     "expect_survives": true, "expect_backend": "mock", "expect_breaker_tripped": false},
+    {"name": "OpenRouter timeouts trip the breaker", "scenario": "openrouter_timeout_trips_breaker",
+     "expect_survives": true, "expect_backend": "mock", "expect_breaker_tripped": true},
+    {"name": "malformed OpenRouter response", "scenario": "malformed_response",
+     "expect_survives": true, "expect_backend": "mock", "expect_breaker_tripped": false},
+    {"name": "one transient failure then recovery (retry/backoff)", "scenario": "intermittent_then_recover",
+     "expect_survives": true, "expect_backend": "openrouter", "expect_breaker_tripped": false},
+    {"name": "whole negotiation survives constant failures", "scenario": "full_negotiation_survives_failures",
+     "expect_survives": true, "expect_backend": "mock", "expect_breaker_tripped": true}
+  ]
+}

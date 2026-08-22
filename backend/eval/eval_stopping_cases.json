@@ -1,0 +1,17 @@
+{
+  "_comment": "Scripted stopping-rule scenarios (spec 6). run_eval feeds each to engine.stopping_rules.check_stopping with tolerance=500, max_rounds=20; when deadline_hit is true it passes deadline_round=round. expected_action 'accept' maps to the engine's 'agreement'.",
+  "tolerance": 500,
+  "max_rounds": 20,
+  "cases": [
+    {"name": "within tolerance", "buyer_offer": 17800, "seller_offer": 18000, "round": 6, "deadline_hit": false, "expected_action": "accept"},
+    {"name": "crossover", "buyer_offer": 18500, "seller_offer": 18000, "round": 6, "deadline_hit": false, "expected_action": "accept"},
+    {"name": "moderate gap early", "buyer_offer": 16000, "seller_offer": 18000, "round": 2, "deadline_hit": false, "expected_action": "continue"},
+    {"name": "deadline passed no deal", "buyer_offer": 14000, "seller_offer": 18000, "round": 7, "deadline_hit": true, "expected_action": "walk_away"},
+    {"name": "deal on deadline round", "buyer_offer": 17900, "seller_offer": 18000, "round": 7, "deadline_hit": true, "expected_action": "accept"},
+    {"name": "hard round cap", "buyer_offer": 12000, "seller_offer": 18000, "round": 20, "deadline_hit": false, "expected_action": "max_rounds"},
+    {"name": "wide gap after patience", "buyer_offer": 10000, "seller_offer": 18000, "round": 8, "deadline_hit": false, "expected_action": "walk_away"},
+    {"name": "just inside tolerance", "buyer_offer": 17000, "seller_offer": 17300, "round": 5, "deadline_hit": false, "expected_action": "accept"},
+    {"name": "still negotiating", "buyer_offer": 15000, "seller_offer": 17000, "round": 3, "deadline_hit": false, "expected_action": "continue"},
+    {"name": "close but not yet, keep going", "buyer_offer": 16800, "seller_offer": 17400, "round": 6, "deadline_hit": false, "expected_action": "continue"}
+  ]
+}
