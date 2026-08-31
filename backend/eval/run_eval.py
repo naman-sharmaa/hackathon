@@ -173,10 +173,7 @@ def _run_negotiation(spec: dict):
     )
     guard = 0
     while s.status == "active" and guard < 60:
-        if s.pending_approval:
-            s.resolve_approval("approve")
-        else:
-            s.advance_turn()
+        s.advance_turn()
         guard += 1
     return s
 

@@ -42,10 +42,7 @@ def test_build_report_on_finished_session():
         currency="₹", title="Delhi rental",
     )
     for _ in range(60):
-        if s.pending_approval:
-            s.resolve_approval("approve")
-        else:
-            s.advance_turn()
+        s.advance_turn()
         if s.status != "active":
             break
     rc = build_report(s)
