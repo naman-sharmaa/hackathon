@@ -513,6 +513,9 @@ class LLMClient:
         messages = [{"role": "system", "content": system_prompt}] + context_messages
         if instruction:
             messages.append({"role": "system", "content": instruction})
+        # Groq/OpenAI-compatible APIs require the last message to have role "user".
+        # Append a minimal user prompt to satisfy this requirement.
+        messages.append({"role": "user", "content": "Please respond."})
         # A touch more heat on offers => more varied phrasing; steadier on close.
         temperature = 0.85 if mode == "offer" else 0.5
         last_err = ""

@@ -274,6 +274,8 @@ class SessionState:
 
     # ------------------------------------------------------------------ #
     def to_public_dict(self) -> dict:
+        # Determine if we're using live LLMs (not mock narrator)
+        live_llm = SETTINGS.has_openrouter and not any(b.is_open for b in self.client.breakers.values())
         return {
             "id": self.id,
             "title": self.title,
@@ -293,4 +295,5 @@ class SessionState:
             "interventions": [asdict(i) for i in self.interventions],
             "awaiting_human": (self.turn if self.mode[self.turn] == "human"
                                and self.status == "active" else None),
+            "live_llm": live_llm,
         }

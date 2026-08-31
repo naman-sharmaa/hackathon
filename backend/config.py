@@ -93,10 +93,10 @@ class EngineDefaults:
 class Settings:
     # --- LLM / provider ---
     openrouter_api_key: str = field(default_factory=lambda: os.getenv("OPENROUTER_API_KEY", "").strip())
-    openrouter_base_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"))
-    buyer_model: str = field(default_factory=lambda: os.getenv("BUYER_MODEL", "mimo-v2.5-free"))
-    seller_model: str = field(default_factory=lambda: os.getenv("SELLER_MODEL", "hy3-free"))
-    classifier_model: str = field(default_factory=lambda: os.getenv("CLASSIFIER_MODEL", "nemotron-3-ultra-free"))
+    openrouter_base_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_BASE_URL", "https://api.groq.com/openai/v1"))
+    buyer_model: str = field(default_factory=lambda: os.getenv("BUYER_MODEL", "groq/compound-mini"))
+    seller_model: str = field(default_factory=lambda: os.getenv("SELLER_MODEL", "openai/gpt-oss-20b"))
+    classifier_model: str = field(default_factory=lambda: os.getenv("CLASSIFIER_MODEL", "openai/gpt-oss-120b"))
     ollama_model: str = field(default_factory=lambda: os.getenv("OLLAMA_FALLBACK_MODEL", "llama3.2:1b"))
     ollama_host: str = field(default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434"))
     app_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_APP_URL", ""))

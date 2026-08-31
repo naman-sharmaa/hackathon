@@ -74,7 +74,7 @@ ROUTES = [
     ("GET", _rx(r"/eval/run"), r_eval.eval_run),
     ("GET", _rx(r"/eval/results"), r_eval.eval_results),
     ("GET", _rx(r"/health"), lambda p, b, q: (200, {"ok": True, "service": "dealbench"})),
-    ("GET", _rx(r"/api/diagnose"), lambda p, b, q: (200, diagnose(probe=q.get("probe", [""])[0].lower() == "true"))),
+    ("GET", _rx(r"/api/diagnose"), lambda p, b, q: (200, diagnose(probe=bool(q.get("probe", False))))),
 ]
 
 _API_PREFIXES = ("/session", "/eval", "/health", "/api")
@@ -139,6 +139,10 @@ class DealBenchHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
         query = {k: v[0] if len(v) == 1 else v for k, v in parse_qs(parsed.query).items()}
+        # Ensure boolean query params work: flatten 'true'/'false' strings to booleans for convenience
+        for k, v in list(query.items()):
+            if isinstance(v, str) and v.lower() in ("true", "false"):
+                query[k] = v.lower() == "true"
 
         matched_path = False
         for m, rx, handler in ROUTES:
@@ -191,7 +195,7 @@ code{background:#f4f4f5;padding:.15rem .4rem;border-radius:4px}</style></head>
 <body><h1>DealBench API is running</h1>
 <p>The frontend hasn't been added yet. The API is live — try:</p>
 <ul><li><code>GET /health</code></li><li><code>GET /eval/results</code></li>
-<li><code>POST /session</code> then <code>POST /session/{id}/message</code></li></ul>
+<li><code>POST /session</code> then <code>POST /session/{id}/message</code></ul>
 </body></html>"""
 
 
