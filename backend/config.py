@@ -133,7 +133,7 @@ class EngineDefaults:
 class Settings:
     # --- LLM / provider ---
     openrouter_api_key: str = field(default_factory=lambda: os.getenv("OPENROUTER_API_KEY", "").strip())
-    openrouter_base_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_BASE_URL", "https://opencode.ai/zen/v1"))
+    openrouter_base_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"))
     buyer_model: str = field(default_factory=lambda: os.getenv("BUYER_MODEL", "mimo-v2.5-free"))
     seller_model: str = field(default_factory=lambda: os.getenv("SELLER_MODEL", "hy3-free"))
     classifier_model: str = field(default_factory=lambda: os.getenv("CLASSIFIER_MODEL", "nemotron-3-ultra-free"))
