@@ -22,6 +22,7 @@ Run:  python app.py            (defaults to 127.0.0.1:8000)
       PORT=9000 python app.py
 """
 from __future__ import annotations
+from agents.llm_client import diagnose
 
 import json
 import logging
@@ -73,9 +74,10 @@ ROUTES = [
     ("GET", _rx(r"/eval/run"), r_eval.eval_run),
     ("GET", _rx(r"/eval/results"), r_eval.eval_results),
     ("GET", _rx(r"/health"), lambda p, b, q: (200, {"ok": True, "service": "dealbench"})),
+    ("GET", _rx(r"/api/diagnose"), lambda p, b, q: (200, diagnose(probe=q.get("probe", [""])[0].lower() == "true"))),
 ]
 
-_API_PREFIXES = ("/session", "/eval", "/health")
+_API_PREFIXES = ("/session", "/eval", "/health", "/api")
 
 
 class DealBenchHandler(BaseHTTPRequestHandler):

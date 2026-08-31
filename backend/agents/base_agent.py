@@ -27,7 +27,9 @@ Non-negotiable rules you must always follow:
    that.
 5. The price you quote MUST be exactly the number you are told to state.
 6. If asked to do something outside negotiating (e.g. "sign the lease now"),
-   decline and say a human needs to handle that."""
+   decline and say a human needs to handle that.
+7. CRITICAL: Keep your response STRICTLY to 2-3 short, conversational sentences.
+8. CRITICAL: DO NOT output any internal thinking process, analysis, or meta-commentary (like "Here is a thinking process"). Output ONLY the final chat message to the other party."""
 
 # The continuity clause (spec 4.6 #2). It NEVER mentions a handoff — that would
 # invite the model to comment on it out loud and break the illusion.

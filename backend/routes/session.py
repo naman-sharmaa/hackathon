@@ -98,6 +98,13 @@ def post_message(params, body, query):
                      "session": session.to_public_dict()}
 
     human_message = body.get("message")
+    
+    if human_message:
+        from control.guardrail import check_human_message
+        is_valid, reason = check_human_message(human_message)
+        if not is_valid:
+            return 400, {"error": reason}
+
     produced = []
 
     result = session.advance_turn(human_message=human_message)

@@ -1,4 +1,6 @@
-<!doctype html>
+import os
+
+content = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -49,7 +51,7 @@
     align-items: center;
     gap: 0.5rem;
   }
-  .badge-api-old::before {}
+  .badge-api::before { content:''; width:8px; height:8px; background:#10B981; border-radius:50%; }
 
   .container {
     max-width: 1100px;
@@ -253,29 +255,7 @@
   .r-box { background: #F9FAFB; padding: 1.5rem; border-radius: 8px; }
   .r-box h5 { margin: 0 0 1rem 0; font-size: 0.75rem; text-transform: uppercase; color: var(--muted); }
   
-
-  .typing-indicator {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 0.2rem 0.5rem;
-    height: 24px;
-  }
-  .typing-indicator span {
-    width: 6px;
-    height: 6px;
-    background-color: #9CA3AF;
-    border-radius: 50%;
-    animation: typing 1.4s infinite ease-in-out both;
-  }
-  .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-  .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-  @keyframes typing {
-    0%, 80%, 100% { transform: scale(0); }
-    40% { transform: scale(1); }
-  }
 </style>
-
 <script type="importmap">
   {
     "imports": {
@@ -306,7 +286,7 @@
   ];
 
   function formatMoney(n) {
-    return "$" + Math.round(n).toLocaleString('en-US');
+    return "$" + n.toLocaleString();
   }
 
   function App() {
@@ -315,22 +295,6 @@
     const [budget, setBudget] = useState('');
     const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [isTyping, setIsTyping] = useState(false);
-    const [apiStatus, setApiStatus] = useState('Checking API...');
-
-    useEffect(() => {
-      fetch('/api/diagnose?probe=true')
-        .then(res => res.json())
-        .then(data => {
-           if (data.verdict === 'live') {
-               setApiStatus('Live API ready');
-           } else {
-               setApiStatus('Offline Narrator');
-           }
-        })
-        .catch(err => setApiStatus('Offline Narrator'));
-    }, []);
-
     const [humanMsg, setHumanMsg] = useState('');
     const [report, setReport] = useState(null);
     const [autoPlay, setAutoPlay] = useState(true);
@@ -344,7 +308,6 @@
     }, [session?.history]);
 
     const advance = async (currentSessionId) => {
-      setIsTyping(false);
       setLoading(true);
       try {
         const res = await fetch(`/session/${currentSessionId}/message`, {
@@ -363,18 +326,12 @@
     useEffect(() => {
       let timer;
       if (view === 'neg' && session && session.status === 'active' && !session.awaiting_human && autoPlay && !loading) {
-        if (!isTyping) {
-          setIsTyping(true);
-        } else {
-          timer = setTimeout(() => {
-            advance(session.id);
-          }, 500);
-        }
-      } else if (isTyping) {
-         setIsTyping(false);
+        timer = setTimeout(() => {
+          advance(session.id);
+        }, 2000);
       }
       return () => clearTimeout(timer);
-    }, [view, session, autoPlay, loading, isTyping]);
+    }, [view, session, autoPlay, loading]);
 
     const startNegotiation = async () => {
       setLoading(true);
@@ -412,32 +369,20 @@
           body: JSON.stringify({message: humanMsg})
         });
         const data = await res.json();
-        if (data.error) {
-           alert("Out of Scope: " + data.error);
-           setLoading(false);
-        } else {
-           setSession(data.session);
-           setHumanMsg('');
-           if(data.session.status !== 'active') {
-               fetchReport(data.session.id);
-               setLoading(false);
-           } else {
-               await intervene('return_to_ai');
-               // intervene handles setLoading(false)
-           }
-        }
-      } catch(err) {
-         setLoading(false);
-      }
+        setSession(data.session);
+        setHumanMsg('');
+        if(data.session.status !== 'active') fetchReport(data.session.id);
+      } catch(err) {}
+      setLoading(false);
     };
 
-    const intervene = async (action, targetSide = 'buyer') => {
+    const intervene = async (action) => {
       setLoading(true);
       try {
         const res = await fetch(`/session/${session.id}/intervene`, {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({side: targetSide, action})
+          body: JSON.stringify({side: session.turn, action})
         });
         const data = await res.json();
         setSession(data.session);
@@ -459,10 +404,7 @@
         <div>
           <div className="navbar">
             <div className="navbar-brand">🏠 Cornerstone Homes <span>Marlowe Ridge</span></div>
-            <div className="badge-api">
-              <span style=${{width:'8px', height:'8px', borderRadius:'50%', display:'inline-block', background: apiStatus === 'Live API ready' ? '#10B981' : (apiStatus === 'Checking API...' ? '#F59E0B' : '#9CA3AF')}}></span>
-              ${apiStatus}
-            </div>
+            <div className="badge-api">Live API ready</div>
           </div>
           <div className="container">
             <div className="hero-subtitle">Cornerstone Homes · Marlowe Ridge</div>
@@ -480,8 +422,8 @@
             <div className="grid">
               ${HOMES.map((h) => {
                 return html`
-                  <div key=${h.id} className="card" onClick=${() => { setHome(h); setBudget(h.price.toString()); setView('detail'); }}>
-                    <div className="card-img" style=${{backgroundImage: `url(${h.image})`}}>
+                  <div key="${h.id}" className="card" onClick="${() => { setHome(h); setBudget(h.price.toString()); setView('detail'); }}">
+                    <div className="card-img" style="${{backgroundImage: `url(${h.image})`}}">
                       <div className="badge-days">${h.days} DAYS ON MARKET</div>
                     </div>
                     <div className="card-body">
@@ -511,44 +453,41 @@
         <div>
           <div className="navbar">
             <div className="navbar-brand">🏠 Cornerstone Homes <span>Marlowe Ridge</span></div>
-            <div className="badge-api">
-              <span style=${{width:'8px', height:'8px', borderRadius:'50%', display:'inline-block', background: apiStatus === 'Live API ready' ? '#10B981' : (apiStatus === 'Checking API...' ? '#F59E0B' : '#9CA3AF')}}></span>
-              ${apiStatus}
-            </div>
+            <div className="badge-api">Live API ready</div>
           </div>
           <div className="container">
-            <div className="back-btn" onClick=${()=>setView('list')}>← All homes</div>
+            <div className="back-btn" onClick="${()=>setView('list')}">← All homes</div>
             <div className="detail-layout">
               <div className="detail-main">
-                <div className="large-img" style=${{backgroundImage: `url(${home.image})`}}>
+                <div className="large-img" style="${{backgroundImage: `url(${home.image})`}}">
                 </div>
-                <div style=${{textTransform:'uppercase', fontSize:'0.8rem', letterSpacing:'1px', color:'#9CA3AF', marginBottom:'0.5rem'}}>Old Marlowe</div>
-                <h1 style=${{margin:'0 0 1rem 0'}}>${home.title}</h1>
-                <p style=${{color:'#6B7280', fontSize:'1.1rem'}}>${home.desc}</p>
-                <p style=${{lineHeight:'1.6', marginTop:'1.5rem', color:'#374151'}}>A beautiful property featuring open living spaces, natural light, and premium finishes throughout. Ideal for those looking for a perfect balance of comfort and modern design.</p>
+                <div style="${{textTransform:'uppercase', fontSize:'0.8rem', letterSpacing:'1px', color:'#9CA3AF', marginBottom:'0.5rem'}}">Old Marlowe</div>
+                <h1 style="${{margin:'0 0 1rem 0'}}">${home.title}</h1>
+                <p style="${{color:'#6B7280', fontSize:'1.1rem'}}">${home.desc}</p>
+                <p style="${{lineHeight:'1.6', marginTop:'1.5rem', color:'#374151'}}">A beautiful property featuring open living spaces, natural light, and premium finishes throughout. Ideal for those looking for a perfect balance of comfort and modern design.</p>
               </div>
               <div className="detail-side">
                 <div className="offer-box">
-                  <div style=${{fontSize:'0.8rem', fontWeight:'700', color:'#9CA3AF', letterSpacing:'1px', marginBottom:'0.5rem'}}>Asking</div>
-                  <div style=${{fontSize:'2.5rem', fontWeight:'700', color:'#1B2735', marginBottom:'1.5rem'}}>${formatMoney(home.price)}</div>
+                  <div style="${{fontSize:'0.8rem', fontWeight:'700', color:'#9CA3AF', letterSpacing:'1px', marginBottom:'0.5rem'}}">Asking</div>
+                  <div style="${{fontSize:'2.5rem', fontWeight:'700', color:'#1B2735', marginBottom:'1.5rem'}}">${formatMoney(home.price)}</div>
                   
                   <h3>Make your offer</h3>
                   <p>Your agent negotiates toward a deal without ever revealing your ceiling.</p>
                   
                   <label>Your budget ceiling — the most you'll pay; kept private</label>
-                  <input type="number" value=${budget} onChange=${e=>setBudget(e.target.value)} />
+                  <input type="number" value="${budget}" onChange="${e=>setBudget(e.target.value)}" />
                   
                   <label>Who's driving</label>
                   <div className="toggle-group">
                     <button className="toggle-btn active">Agent, with approvals</button>
                     <button className="toggle-btn">I'll negotiate</button>
                   </div>
-                  <p style=${{fontSize:'0.8rem', marginTop:'-0.5rem'}}>Your agent pauses for your nod before closing or when pushed hard.</p>
+                  <p style="${{fontSize:'0.8rem', marginTop:'-0.5rem'}}">Your agent pauses for your nod before closing or when pushed hard.</p>
                   
-                  <label style=${{marginTop:'1.5rem'}}>Ask me before offering above — optional</label>
+                  <label style="${{marginTop:'1.5rem'}}">Ask me before offering above — optional</label>
                   <input type="text" placeholder="no cap" />
                   
-                  <button className="btn btn-primary" onClick=${startNegotiation} disabled=${loading}>
+                  <button className="btn btn-primary" onClick="${startNegotiation}" disabled="${loading}">
                     ${loading ? 'Starting...' : 'Engage your agent →'}
                   </button>
                 </div>
@@ -575,34 +514,31 @@
         <div>
           <div className="navbar">
             <div className="navbar-brand">🏠 Cornerstone Homes <span>Marlowe Ridge</span></div>
-            <div className="badge-api">
-              <span style=${{width:'8px', height:'8px', borderRadius:'50%', display:'inline-block', background: session.live_llm ? '#10B981' : '#9CA3AF'}}></span>
-              ${session.live_llm ? 'Live OpenRouter' : 'Offline Narrator'}
-            </div>
+            <div className="badge-api">${session.live_llm ? 'Live OpenRouter' : 'Offline Narrator'}</div>
           </div>
           
-          <div className="container" style=${{paddingTop:'2rem'}}>
-            <div className="back-btn" onClick=${()=>setView('list')}>← Back to listing</div>
-            <h2 style=${{margin:'0 0 0.5rem 0'}}>${home.title}</h2>
-            <div style=${{color:'#6B7280', fontSize:'0.9rem', marginBottom:'2rem'}}>Old Marlowe · asking ${formatMoney(home.price)}</div>
+          <div className="container" style="${{paddingTop:'2rem'}}">
+            <div className="back-btn" onClick="${()=>setView('list')}">← Back to listing</div>
+            <h2 style="${{margin:'0 0 0.5rem 0'}}">${home.title}</h2>
+            <div style="${{color:'#6B7280', fontSize:'0.9rem', marginBottom:'2rem'}}">Old Marlowe · asking ${formatMoney(home.price)}</div>
             
             ${isEnded && report ? html`
-              <div className="report-card" style=${{marginBottom:'2rem', background: report.status === 'agreed' ? '#ECFDF5' : '#FEE2E2'}}>
-                <h3 style=${{margin:0}}>
+              <div className="report-card" style="${{marginBottom:'2rem', background: report.status === 'agreed' ? '#ECFDF5' : '#FEE2E2'}}">
+                <h3 style="${{margin:0}}">
                   ${report.status === 'agreed' ? 'Deal Reached' : 'Walked away — no deal'}
                 </h3>
-                <p style=${{marginTop:'0.5rem', color:'#4B5563'}}>
+                <p style="${{marginTop:'0.5rem', color:'#4B5563'}}">
                   ${report.status === 'agreed' ? 'Agreement was found within the ZOPA.' : 'No deal was possible or maximum rounds reached.'}
                 </p>
                 
                 <div className="report-grid">
-                  <div className="r-box"><h5>Final Price</h5><div style=${{fontSize:'1.8rem', fontWeight:700}}>${report.final_price ? formatMoney(report.final_price) : '—'}</div></div>
-                  <div className="r-box"><h5>Rounds</h5><div style=${{fontSize:'1.8rem', fontWeight:700}}>${report.rounds_completed || 0}</div></div>
-                  <div className="r-box"><h5>ZOPA Width</h5><div style=${{fontSize:'1.8rem', fontWeight:700}}>${report.deal_analysis?.zopa_size ? formatMoney(report.deal_analysis.zopa_size) : 'none'}</div></div>
+                  <div className="r-box"><h5>Final Price</h5><div style="${{fontSize:'1.8rem', fontWeight:700}}">${report.final_price ? formatMoney(report.final_price) : '—'}</div></div>
+                  <div className="r-box"><h5>Rounds</h5><div style="${{fontSize:'1.8rem', fontWeight:700}}">${report.total_rounds}</div></div>
+                  <div className="r-box"><h5>ZOPA Width</h5><div style="${{fontSize:'1.8rem', fontWeight:700}}">${report.zopa_size ? formatMoney(report.zopa_size) : 'none'}</div></div>
                   <div className="r-box"><h5>Integrity & Provenance</h5>
-                    <ul style=${{margin:0, paddingLeft:'1.2rem', color:'#4B5563', fontSize:'0.9rem'}}>
-                      <li>Leaks: ${report.confidence_flags?.leak_failures?.length || 0}</li>
-                      <li>Inconsistencies: ${report.confidence_flags?.price_failures?.length || 0}</li>
+                    <ul style="${{margin:0, paddingLeft:'1.2rem', color:'#4B5563', fontSize:'0.9rem'}}">
+                      <li>Leaks: ${report.leaks_detected}</li>
+                      <li>Inconsistencies: ${report.price_inconsistencies}</li>
                       <li>Clean run: ${report.clean ? 'Yes' : 'No'}</li>
                     </ul>
                   </div>
@@ -614,63 +550,61 @@
               <div className="neg-main">
                 <div className="chat-body">
                   ${session.history.map((m, i) => html`
-                    <div key=${i} className=${`bubble-wrap ${m.side}`}>
+                    <div key="${i}" className="${`bubble-wrap ${m.side}`}">
                       <div className="bubble-meta">
                         ${m.side === 'buyer' ? 'YOUR AGENT' : 'CORNERSTONE'} · round ${m.round}
-                        ${m.quoted_price && html`<span style=${{color: m.side==='buyer'?'#0369A1':'#B45309'}}>${formatMoney(m.quoted_price)}</span>`}
+                        ${m.quoted_price && html`<span style="${{color: m.side==='buyer'?'#0369A1':'#B45309'}}">${formatMoney(m.quoted_price)}</span>`}
                         ${m.detected_tactic && m.detected_tactic !== 'neutral' && html`<span className="bubble-tag tag-concession">${m.detected_tactic}</span>`}
                         ${m.validator_leak_detected && html`<span className="bubble-tag tag-leak">LEAK</span>`}
-                        <span className=${`bubble-tag ${m.backend === 'mock' || m.backend === 'offline' ? 'tag-offline' : 'tag-live'}`}>
+                        <span className="${`bubble-tag ${m.backend === 'mock' || m.backend === 'offline' ? 'tag-offline' : 'tag-live'}`}">
                            ${m.backend === 'mock' ? 'OFFLINE' : 'LIVE'}
                         </span>
                       </div>
                       <div className="bubble">${m.content}</div>
                     </div>
                   `)}
-                  ${(loading || isTyping) && session.mode[session.turn] !== 'human' ? html`
-                    <div className="bubble-wrap" style=${{alignSelf: session.turn === 'buyer' ? 'flex-start' : 'flex-end'}}>
-                       <div className="bubble" style=${{background: 'transparent', padding: '0.5rem'}}>
-                         <div className="typing-indicator"><span></span><span></span><span></span></div>
-                       </div>
+                  ${loading && autoPlay ? html`
+                    <div className="bubble-wrap" style="${{alignSelf: session.turn === 'buyer' ? 'flex-start' : 'flex-end'}}">
+                       <div className="bubble" style="${{background: 'transparent', fontStyle: 'italic', color: '#9CA3AF', padding: '0.5rem'}}>Thinking...</div>
                     </div>
                   ` : null}
-                  <div ref=${chatEndRef}></div>
+                  <div ref="${chatEndRef}"></div>
                 </div>
               </div>
               
               <div className="neg-side">
                 <div className="widget">
                   <h4>Deal Ledger</h4>
-                  <div style=${{display:'flex', justifyContent:'space-between', marginBottom:'1rem'}}>
+                  <div style="${{display:'flex', justifyContent:'space-between', marginBottom:'1rem'}}">
                     <div>
-                      <div style=${{fontSize:'0.7rem', color:'#10B981', fontWeight:700}}>YOUR OFFER</div>
-                      <div style=${{fontSize:'1.3rem', fontWeight:700}}>${bOffer ? formatMoney(bOffer) : '—'}</div>
+                      <div style="${{fontSize:'0.7rem', color:'#10B981', fontWeight:700}}">YOUR OFFER</div>
+                      <div style="${{fontSize:'1.3rem', fontWeight:700}}">${bOffer ? formatMoney(bOffer) : '—'}</div>
                     </div>
-                    <div style=${{textAlign:'right'}}>
-                      <div style=${{fontSize:'0.7rem', color:'#F59E0B', fontWeight:700}}>THEIR ASK</div>
-                      <div style=${{fontSize:'1.3rem', fontWeight:700}}>${sOffer ? formatMoney(sOffer) : '—'}</div>
+                    <div style="${{textAlign:'right'}}">
+                      <div style="${{fontSize:'0.7rem', color:'#F59E0B', fontWeight:700}}">THEIR ASK</div>
+                      <div style="${{fontSize:'1.3rem', fontWeight:700}}">${sOffer ? formatMoney(sOffer) : '—'}</div>
                     </div>
                   </div>
                   <div className="slider-rail">
-                    ${bOffer && html`<div className="slider-dot buyer" style=${{left: `${bPct}%`}}></div>`}
-                    ${sOffer && html`<div className="slider-dot seller" style=${{left: `${sPct}%`}}></div>`}
+                    ${bOffer && html`<div className="slider-dot buyer" style="${{left: `${bPct}%`}}"></div>`}
+                    ${sOffer && html`<div className="slider-dot seller" style="${{left: `${sPct}%`}}"></div>`}
                   </div>
-                  ${bOffer && sOffer && html`<div style=${{textAlign:'center', fontSize:'0.8rem', color:'#6B7280', marginTop:'1.5rem'}}>Gap to close: ${formatMoney(sOffer - bOffer)}</div>`}
+                  ${bOffer && sOffer && html`<div style="${{textAlign:'center', fontSize:'0.8rem', color:'#6B7280', marginTop:'1.5rem'}}">Gap to close: ${formatMoney(sOffer - bOffer)}</div>`}
                 </div>
                 
                 <div className="widget">
                   <h4>At the table</h4>
-                  <div style=${{display:'flex', justifyContent:'space-between', borderBottom:'1px solid #F3F4F6', paddingBottom:'0.5rem', marginBottom:'0.5rem'}}>
-                    <span style=${{color:'#6B7280', fontSize:'0.9rem'}}>To move</span>
-                    <span style=${{fontWeight:700, fontSize:'0.9rem', color: session.turn==='buyer'?'#10B981':'#F59E0B'}}>${session.turn==='buyer' ? 'Your Agent' : 'Cornerstone'}</span>
+                  <div style="${{display:'flex', justifyContent:'space-between', borderBottom:'1px solid #F3F4F6', paddingBottom:'0.5rem', marginBottom:'0.5rem'}}">
+                    <span style="${{color:'#6B7280', fontSize:'0.9rem'}}">To move</span>
+                    <span style="${{fontWeight:700, fontSize:'0.9rem', color: session.turn==='buyer'?'#10B981':'#F59E0B'}}">${session.turn==='buyer' ? 'Your Agent' : 'Cornerstone'}</span>
                   </div>
-                  <div style=${{display:'flex', justifyContent:'space-between', borderBottom:'1px solid #F3F4F6', paddingBottom:'0.5rem', marginBottom:'0.5rem'}}>
-                    <span style=${{color:'#6B7280', fontSize:'0.9rem'}}>Round</span>
-                    <span style=${{fontWeight:700, fontSize:'0.9rem'}}>${session.exchange} / ${session.max_rounds}</span>
+                  <div style="${{display:'flex', justifyContent:'space-between', borderBottom:'1px solid #F3F4F6', paddingBottom:'0.5rem', marginBottom:'0.5rem'}}">
+                    <span style="${{color:'#6B7280', fontSize:'0.9rem'}}">Round</span>
+                    <span style="${{fontWeight:700, fontSize:'0.9rem'}}">${session.exchange} / ${session.max_rounds}</span>
                   </div>
-                  <div style=${{display:'flex', justifyContent:'space-between'}}>
-                    <span style=${{color:'#6B7280', fontSize:'0.9rem'}}>Your side</span>
-                    <span style=${{fontWeight:700, fontSize:'0.9rem'}}>${session.mode.buyer === 'auto' ? 'Agent' : 'Manual'}</span>
+                  <div style="${{display:'flex', justifyContent:'space-between'}}">
+                    <span style="${{color:'#6B7280', fontSize:'0.9rem'}}">Your side</span>
+                    <span style="${{fontWeight:700, fontSize:'0.9rem'}}">${session.mode.buyer === 'auto' ? 'Agent' : 'Manual'}</span>
                   </div>
                 </div>
                 
@@ -678,26 +612,26 @@
                   <h4>Live Negotiation</h4>
                   ${!isEnded ? html`
                     ${session.awaiting_human ? html`
-                      <textarea placeholder="Type your counter..." value=${humanMsg} onChange=${e=>setHumanMsg(e.target.value)} style=${{height:'80px', background:'#FFFFFF'}}></textarea>
-                      <button className="btn" style=${{background:'#6B7280', color:'white', marginBottom:'0.5rem'}} onClick=${sendMsg}>Send message</button>
-                      <button className="btn btn-primary" style=${{background:'transparent', color:'#6B7280', border:'1px solid #E5E7EB'}} onClick=${()=>intervene('return_to_ai')}>Resume Agent</button>
+                      <textarea placeholder="Type your counter..." value="${humanMsg}" onChange="${e=>setHumanMsg(e.target.value)}" style="${{height:'80px', background:'#FFFFFF'}}"></textarea>
+                      <button className="btn" style="${{background:'#6B7280', color:'white', marginBottom:'0.5rem'}}" onClick="${sendMsg}">Send message</button>
+                      <button className="btn btn-primary" style="${{background:'transparent', color:'#6B7280', border:'1px solid #E5E7EB'}}" onClick="${()=>intervene('return_to_ai')}">Resume Agent</button>
                     ` : html`
-                      <div style=${{display: 'flex', gap: '0.5rem', marginBottom: '0.5rem'}}>
-                        <button className="btn" style=${{background: autoPlay ? '#FEE2E2' : '#ECFDF5', color: autoPlay ? '#B91C1C' : '#047857', flex: 1}} onClick=${() => setAutoPlay(!autoPlay)}>
+                      <div style="${{display: 'flex', gap: '0.5rem', marginBottom: '0.5rem'}}">
+                        <button className="btn" style="${{background: autoPlay ? '#FEE2E2' : '#ECFDF5', color: autoPlay ? '#B91C1C' : '#047857', flex: 1}}" onClick="${() => setAutoPlay(!autoPlay)}">
                           ${autoPlay ? '⏸ Pause Auto-Chat' : '▶ Resume Auto-Chat'}
                         </button>
                       </div>
                       ${!autoPlay ? html`
-                        <button className="btn" style=${{background:'#6B7280', color:'white', marginBottom:'0.5rem'}} onClick=${() => advance(session.id)} disabled=${loading}>
+                        <button className="btn" style="${{background:'#6B7280', color:'white', marginBottom:'0.5rem'}}" onClick="${() => advance(session.id)}" disabled="${loading}">
                           ${loading ? 'Thinking...' : 'Advance 1 turn'}
                         </button>
                       ` : null}
-                      <button className="btn btn-primary" style=${{background:'transparent', color:'#6B7280', border:'1px solid #E5E7EB'}} onClick=${()=>intervene('take_over', 'buyer')} disabled=${loading}>
+                      <button className="btn btn-primary" style="${{background:'transparent', color:'#6B7280', border:'1px solid #E5E7EB'}}" onClick="${()=>{setAutoPlay(false); intervene('take_over');}}" disabled="${loading}">
                         Take over as buyer
                       </button>
                     `}
                   ` : html`
-                    <div style=${{textAlign:'center', color:'#6B7280'}}>Session concluded.</div>
+                    <div style="${{textAlign:'center', color:'#6B7280'}}">Session concluded.</div>
                   `}
                 </div>
               </div>
@@ -715,3 +649,7 @@
 </script>
 </body>
 </html>
+"""
+
+with open("frontend/index.html", "w") as f:
+    f.write(content)
