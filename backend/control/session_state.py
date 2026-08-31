@@ -149,6 +149,9 @@ class SessionState:
                 return {"error": f"{side} is in human mode; a message is required",
                         "status": self.status, "awaiting_human": side}
             msg = self._make_human_message(side, rnum, human_message, engine_offer)
+            # If the human explicitly wants to cancel, end the negotiation immediately.
+            if "cancel" in human_message.lower() or "stop" in human_message.lower():
+                self.status = "walked_away"
         else:
             msg = self._make_agent_message(side, rnum, engine_offer)
 
@@ -228,6 +231,8 @@ class SessionState:
         )
 
     def _check_and_finalize(self, closing_side: str) -> str:
+        if self.status != "active":
+            return self.status
         if self.offer["buyer"] is None or self.offer["seller"] is None:
             return "active"
         outcome = check_stopping(
