@@ -94,6 +94,13 @@ class Settings:
     ollama_host: str = field(default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434"))
     app_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_APP_URL", ""))
     app_title: str = field(default_factory=lambda: os.getenv("OPENROUTER_APP_TITLE", "DealBench"))
+    # Some gateways (e.g. OpenCode Zen) sit behind Cloudflare, whose Browser
+    # Integrity Check rejects urllib's default "Python-urllib/3.x" UA with
+    # "error code: 1010". Send a real browser UA; override via LLM_USER_AGENT.
+    user_agent: str = field(default_factory=lambda: os.getenv(
+        "LLM_USER_AGENT",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"))
 
     # --- resilience knobs ---
     circuit_breaker_threshold: int = field(default_factory=lambda: _int("CIRCUIT_BREAKER_THRESHOLD", 2))
