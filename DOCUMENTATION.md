@@ -1,68 +1,70 @@
-# DealBench - Project Documentation
+# DealBench - Deep Dive Preparation Guide
 
-# Github Link
-https://github.com/naman-sharmaa/hackathon
-
-## 1. What We Built and How It Works
-
-**DealBench** is an advanced AI negotiation testbed where two AI agents (a buyer and a seller) haggle over a price in natural language. 
-
-The core philosophy of DealBench is that **language models are great narrators but terrible calculators**. A pure "let two LLMs negotiate" demo usually fails because models drift off their quoted numbers, accidentally blurt out their secret walk-away prices, and produce non-reproducible runs.
-
-### How It Works
-DealBench solves these issues by completely separating the *math* from the *narration*:
-1. **The Engine Owns the Math:** A deterministic, closed-form concession curve computes each side's next offer based on their private reservation price, round number, and counter-tactic. Stopping rules explicitly decide when they reach an agreement, walk away, or hit a deadline.
-2. **Models Only Narrate:** The LLM is handed the exact number it needs to pitch and is tasked purely with persuading the other side.
-3. **Strict Validation:** Before any message enters the transcript, it passes through a validator that checks for exact price consistency and ensures no reservation prices are leaked.
-4. **Human-in-the-Loop:** A human can take over either side mid-negotiation, type a custom counter-offer, and hand it back to the AI without breaking the session state.
-
-Everything runs seamlessly with **zero dependencies**—the backend relies strictly on the Python 3.10+ standard library, and the frontend is a no-build React application delivered via CDN.
+This documentation is designed to help the team prepare in-depth for project presentation and technical deep-dives. The project architecture has been divided into four specific domains. Each team member should master their assigned section to comprehensively explain how that part of the DealBench system works.
 
 ---
 
-## 2. Team Members & Contributions
+## 1. Evaluation & Analytics
+**Assigned to: Team Member 1 (Anmol Kannaujiya / AI/ML)**
+**Focus Areas:** `backend/eval/`, `backend/grader/`, `run_eval.py`
 
-Our team collaborated closely across Full Stack and AI/ML boundaries to bring this highly reliable architecture to life.
+Your domain is responsible for judging how well the negotiation performed, analyzing the mathematics of the deal, and running benchmark suites to ensure system integrity.
 
-* **Naman Sharma (Full Stack)**
-  * **Architecture & Orchestration:** Architected the zero-dependency Python backend utilizing `http.server`. 
-  * **Frontend Development:** Built the complete no-build React SPA using HTM and CDN imports, ensuring a clean, responsive UI with real-time transcript tracking and intervention controls.
-  * **Session Management:** Engineered the orchestration layer (`session_state.py`) that manages the conversational turn-taking, human-in-the-loop takeovers, and manual approval gates.
-
-* **Piyush Rawat (AI/ML)**
-  * **Tactic Classifier Ensemble:** Designed and implemented the hybrid tactic classifier that uses high-precision regex rules augmented by an LLM ensemble to reliably detect negotiation tactics (e.g., walk-away threats, deadlines).
-  * **Resilient Agent Pipeline:** Built the LLM client infrastructure with circuit breakers. Integrated OpenRouter with graceful fallbacks to Ollama and finally to a deterministic mock narrator to guarantee the system never crashes during a live demo.
-
-* **Deepak Kumar (Full Stack)**
-  * **Deterministic Math Engine:** Developed the closed-form diminishing-concession offer curves and the complex stopping rules (agreement on crossover, maximum rounds, walk-aways).
-  * **Grader & Analytics:** Built the post-hoc analysis tools (`optimal_calc.py` and `report_card.py`) to calculate ZOPA (Zone of Possible Agreement), surplus splits, and money left on the table.
-  * **Persistence Layer:** Integrated best-effort SQLite persistence ensuring negotiations can be saved and retrieved without requiring external database setups.
-
-* **Anmol Kannaujiya (AI/ML)**
-  * **Strict Validation System:** Engineered the rigorous validator (`validator.py`) responsible for ensuring absolute price consistency and detecting inadvertent reservation-price leaks.
-  * **Evaluation Harness:** Built the fully offline evaluation benchmark suite (`run_eval.py`) that scores the system on 5 key metrics (tactic accuracy, consistency, leak detection, stopping rules, and fallbacks).
-  * **Prompt Engineering:** Refined the system prompts for the Buyer and Seller agents to ensure highly persuasive, context-aware narrations while strictly adhering to the engine's numerical constraints.
+### Key Concepts to Master:
+*   **ZOPA (Zone of Possible Agreement):** Be able to explain that ZOPA is the overlap between the buyer's absolute maximum budget and the seller's absolute minimum acceptable price. If the buyer can pay up to $500k and the seller will take as low as $450k, the ZOPA is $50k.
+*   **Optimal Splits (`optimal_calc.py`):** Understand how the engine computes the "perfect" mathematically fair deal. It assesses how much surplus value was created and determines if the AI agent or the human captured more of the value.
+*   **Report Cards (`report_card.py`):** At the end of every negotiation (whether agreed or walked away), your module generates a detailed post-game report. It tracks the number of rounds, ZOPA width, surplus captured, and crucially, flags any "leak failures" or inconsistencies.
+*   **Offline Benchmark Suite (`run_eval.py`):** DealBench features a fully offline evaluation harness. Be prepared to explain how we score the system across 5 key metrics:
+    1. Tactic accuracy
+    2. Pricing consistency
+    3. Leak detection
+    4. Stopping rules efficiency
+    5. Fallback resilience.
 
 ---
 
-## 3. Key Features
+## 2. Core Engine & Validation
+**Assigned to: Team Member 2 (Deepak Kumar / Full Stack)**
+**Focus Areas:** `backend/engine/`, `backend/engine/validator.py`, `backend/engine/stopping_rules.py`
 
-* **Engine-Driven Negotiation:** LLMs are stripped of their numerical autonomy, making the negotiation mathematically measurable, reproducible, and safe.
-* **Seamless Human Intervention:** Humans can set soft budget caps that pause the AI for approval. A human can also "Take Over" to send a custom message, which the engine intelligently reads, extracting the human's price to compute the next round.
-* **Hybrid Tactic Classification:** A combination of fast, hardcoded rules and LLM validation allows the engine to adapt dynamically to aggressive tactics like extreme deadlines.
-* **Zero-Install Philosophy:** The backend runs without `pip install` (no external web frameworks), and the frontend requires no `npm` or Webpack.
-* **Comprehensive Grader:** Every completed negotiation generates a detailed report card evaluating value capture, surplus splits, and overall session integrity.
+Your domain is the beating mathematical heart of DealBench. You own the rules of the game.
+
+### Key Concepts to Master:
+*   **Separation of Math and Prose:** The foundational philosophy of DealBench. Be able to explain that Large Language Models are terrible at doing reliable math. Therefore, *your* engine computes the exact dollar amount for every turn, and the LLM is strictly used as a narrator to pitch that specific number.
+*   **Concession Curves:** You manage how offers are calculated. As rounds progress, the AI's offers follow a deterministic, diminishing-return concession curve toward their private reservation price, factoring in the opponent's counter-tactics.
+*   **Strict Validation (`validator.py`):** Before any AI message reaches the user, your validator intercepts it. It uses regex `extract_prices()` to guarantee the LLM included the exact assigned number. Most importantly, it ensures the LLM did **not** accidentally leak its secret walk-away price. If a small model hallucinates the wrong number, your validator catches it.
+*   **Stopping Rules (`stopping_rules.py`):** The LLMs do not decide when the deal is done. Your deterministic rules do. You check every round to see if:
+    *   **Agreement:** `buyer_offer >= seller_offer` (prices have crossed).
+    *   **Max Rounds:** Hard cap hit without a deal.
+    *   **Walk Away:** The gap remains too wide after a certain patience threshold.
 
 ---
 
-## 4. Technical Decisions & Challenges
+## 3. Agents & Model Integration
+**Assigned to: Team Member 3 (Piyush Rawat / AI/ML)**
+**Focus Areas:** `backend/agents/`, `backend/engine/tactic_classifier.py`
 
-### Technical Decisions
-* **Python Standard Library Only:** We deliberately chose not to use frameworks like FastAPI or Flask. By using `http.server`, we ensured that any judge or user could clone the repo and run it instantly (`python app.py`) in highly constrained sandbox environments.
-* **No-Build React Frontend:** To maintain the zero-install philosophy, we utilized React + HTM via jsDelivr CDN. This gives us the component-driven power of React without the overhead of Node.js or a bundler.
-* **Mock Narrator Fallback:** We decided the negotiation must *never* die. If API keys exhaust or rate limits hit, the system elegantly downgrades to local models, and finally to a deterministic text generator, ensuring the demo always completes.
+Your domain involves interacting with the Large Language Models, crafting their personas, classifying their behavior, and handling API resilience.
 
-### Challenges Conquered
-* **LLM Hallucination and Drifting:** Early on, agents would agree to prices outside their budget or leak their walk-away prices. *Solution:* We built the strict separation of concerns where the Python Engine does the math, and the Validator intercepts and filters rogue LLM outputs.
-* **Human-to-AI Handoff:** Allowing a human to inject custom text and hand control back to the AI risked breaking the mathematical curve. *Solution:* We implemented an extraction algorithm that parses the human's text for numerical offers. The engine then treats the closest valid number as the new canonical anchor and recomputes the concession curve seamlessly for the next round.
-* **Tactic Identification Speed vs. Accuracy:** Relying purely on LLMs to classify opponent tactics was too slow and occasionally inaccurate. *Solution:* We implemented an ablation-tested hybrid ensemble where fast regex rules handle clear cases (e.g., "final offer"), deferring to the LLM only for ambiguous text.
+### Key Concepts to Master:
+*   **Multi-Model Strategy & API Clients (`llm_client.py`):** Be prepared to explain how we use OpenRouter to access frontier models. To guarantee authentic negotiations without model "collusion," we strictly enforce that the Buyer and Seller use different model families (e.g., Buyer = **GPT-4o-mini**, Seller = **Claude 3 Haiku**). You also manage the `diagnose` endpoints and circuit breakers that switch to a mock fallback if rate limits are hit.
+*   **Agent Personas & Prompts (`base_agent.py`):** You control the system instructions. Explain how the prompts force the AI to weave the engine's exact mathematical offer into natural conversation. Discuss recent refinements, such as the strict ban on "roleplay actions" (e.g., `*smiles*`, `*pauses*`), forcing the models to output pure professional dialogue.
+*   **Tactic Classification (`tactic_classifier.py`):** You analyze the opponent's text to figure out their strategy. Be ready to explain the hybrid ensemble approach:
+    1.  A fast, hardcoded Regex pass checks for obvious phrases (e.g., "final offer" = `anchoring`).
+    2.  An LLM classification pass (using GPT-4o-mini) handles semantic nuance.
+    3.  Your ensemble logic merges them to confidently detect tactics like `walk_away_threat`, `deadline_pressure`, or `splitting_difference`.
+
+---
+
+## 4. Frontend, Guardrails, Backend, DB & Control Flow
+**Assigned to: Team Member 4 (Naman Sharma / Full Stack)**
+**Focus Areas:** `frontend/`, `backend/app.py`, `backend/routes/`, `backend/control/session_state.py`, `backend/control/guardrail.py`, `backend/db/`
+
+Your domain is the orchestration layer. You tie the entire user experience together, managing how data flows from the browser, through the safety checks, into the state machine, and down to the database.
+
+### Key Concepts to Master:
+*   **Zero-Build Frontend (`frontend/index.html`):** Explain the decision to use a zero-dependency React SPA powered by `htm` over CDN. You manage the dynamic UI, including the live API health badge, real-time typing indicators, the deal ledger, and the seamless manual takeover controls.
+*   **Conversational Guardrails (`guardrail.py`):** When a human manually intervenes, you protect the system. Be ready to explain how you route human messages through an LLM classifier to determine if they are in-scope. If a user tries to chit-chat, do math, or speak off-topic, your guardrail strictly rejects the payload with an HTTP 400 "Out of scope" error.
+*   **Session State Machine (`session_state.py`):** You are the traffic cop. You manage `advance_turn()`, which dictates who speaks next. Explain how you implemented the manual intervention overrides, including the recent updates that allow a user to stay in manual mode indefinitely, and the manual cancellation hook (where detecting "cancel" or "stop" instantly forces a walk-away termination).
+*   **Zero-Dependency Server & Routes (`app.py`):** Explain how DealBench eschews Flask/FastAPI in favor of Python's native `ThreadingHTTPServer`. You built a lightweight REST framework capable of handling concurrent negotiation streams effortlessly.
+*   **Persistence Layer (`backend/db/`):** Be able to explain the SQLite database (`dealbench.db`) powered by `db.py`. It is used to persist session metadata, chat transcripts, final deal statuses, and report cards, ensuring that all negotiations are safely recorded for the frontend list view and post-deal analytics.
